@@ -1,0 +1,2639 @@
+{
+    "status": 200,
+    "code": 200,
+    "time": 1763610793715,
+    "message": "Thành công",
+    "target": null,
+    "data": [
+        {
+            "id": 25689,
+            "createdAt": 1711077825014,
+            "nav": 10000.0,
+            "navDate": "2024-03-18",
+            "productId": 75
+        },
+        {
+            "id": 27287,
+            "createdAt": 1717583020294,
+            "nav": 10000.71,
+            "navDate": "2024-05-27",
+            "productId": 75
+        },
+        {
+            "id": 27288,
+            "createdAt": 1717583022614,
+            "nav": 10000.0,
+            "navDate": "2024-05-28",
+            "productId": 75
+        },
+        {
+            "id": 27289,
+            "createdAt": 1717583024949,
+            "nav": 9999.28,
+            "navDate": "2024-05-29",
+            "productId": 75
+        },
+        {
+            "id": 27290,
+            "createdAt": 1717583027204,
+            "nav": 9998.57,
+            "navDate": "2024-05-30",
+            "productId": 75
+        },
+        {
+            "id": 27291,
+            "createdAt": 1717583029472,
+            "nav": 9997.85,
+            "navDate": "2024-05-31",
+            "productId": 75
+        },
+        {
+            "id": 27292,
+            "createdAt": 1717583031591,
+            "nav": 9995.68,
+            "navDate": "2024-06-03",
+            "productId": 75
+        },
+        {
+            "id": 27293,
+            "createdAt": 1717583033758,
+            "nav": 9994.56,
+            "navDate": "2024-06-04",
+            "productId": 75
+        },
+        {
+            "id": 27294,
+            "createdAt": 1717583035886,
+            "nav": 9985.61,
+            "navDate": "2024-06-05",
+            "productId": 75
+        },
+        {
+            "id": 27304,
+            "createdAt": 1717655708584,
+            "nav": 9997.57,
+            "navDate": "2024-06-06",
+            "productId": 75
+        },
+        {
+            "id": 27338,
+            "createdAt": 1717743843856,
+            "nav": 10009.69,
+            "navDate": "2024-06-07",
+            "productId": 75
+        },
+        {
+            "id": 27373,
+            "createdAt": 1718001222881,
+            "nav": 10036.67,
+            "navDate": "2024-06-10",
+            "productId": 75
+        },
+        {
+            "id": 27411,
+            "createdAt": 1718095699988,
+            "nav": 10017.88,
+            "navDate": "2024-06-11",
+            "productId": 75
+        },
+        {
+            "id": 27444,
+            "createdAt": 1718182405972,
+            "nav": 10037.47,
+            "navDate": "2024-06-12",
+            "productId": 75
+        },
+        {
+            "id": 27477,
+            "createdAt": 1718261019245,
+            "nav": 10078.06,
+            "navDate": "2024-06-13",
+            "productId": 75
+        },
+        {
+            "id": 27512,
+            "createdAt": 1718347458319,
+            "nav": 10095.53,
+            "navDate": "2024-06-14",
+            "productId": 75
+        },
+        {
+            "id": 27545,
+            "createdAt": 1718606498859,
+            "nav": 10001.09,
+            "navDate": "2024-06-17",
+            "productId": 75
+        },
+        {
+            "id": 27570,
+            "createdAt": 1718693730915,
+            "nav": 10036.53,
+            "navDate": "2024-06-18",
+            "productId": 75
+        },
+        {
+            "id": 27619,
+            "createdAt": 1718787929628,
+            "nav": 10114.73,
+            "navDate": "2024-06-19",
+            "productId": 75
+        },
+        {
+            "id": 27657,
+            "createdAt": 1718873437950,
+            "nav": 10110.02,
+            "navDate": "2024-06-20",
+            "productId": 75
+        },
+        {
+            "id": 27682,
+            "createdAt": 1718953396618,
+            "nav": 10145.1,
+            "navDate": "2024-06-21",
+            "productId": 75
+        },
+        {
+            "id": 27715,
+            "createdAt": 1719211906318,
+            "nav": 10159.73,
+            "navDate": "2024-06-24",
+            "productId": 75
+        },
+        {
+            "id": 27745,
+            "createdAt": 1719297370395,
+            "nav": 10042.62,
+            "navDate": "2024-06-25",
+            "productId": 75
+        },
+        {
+            "id": 27783,
+            "createdAt": 1719384039750,
+            "nav": 10002.41,
+            "navDate": "2024-06-26",
+            "productId": 75
+        },
+        {
+            "id": 27819,
+            "createdAt": 1719478015439,
+            "nav": 10022.56,
+            "navDate": "2024-06-27",
+            "productId": 75
+        },
+        {
+            "id": 27859,
+            "createdAt": 1719564067426,
+            "nav": 9981.89,
+            "navDate": "2024-06-28",
+            "productId": 75
+        },
+        {
+            "id": 27879,
+            "createdAt": 1719815731964,
+            "nav": 9906.15,
+            "navDate": "2024-07-01",
+            "productId": 75
+        },
+        {
+            "id": 27913,
+            "createdAt": 1719903199341,
+            "nav": 9901.76,
+            "navDate": "2024-07-02",
+            "productId": 75
+        },
+        {
+            "id": 27952,
+            "createdAt": 1719990367408,
+            "nav": 9925.1,
+            "navDate": "2024-07-03",
+            "productId": 75
+        },
+        {
+            "id": 27990,
+            "createdAt": 1720082443366,
+            "nav": 9957.73,
+            "navDate": "2024-07-04",
+            "productId": 75
+        },
+        {
+            "id": 28019,
+            "createdAt": 1720160770199,
+            "nav": 10000.92,
+            "navDate": "2024-07-05",
+            "productId": 75
+        },
+        {
+            "id": 28054,
+            "createdAt": 1720420302958,
+            "nav": 10037.96,
+            "navDate": "2024-07-08",
+            "productId": 75
+        },
+        {
+            "id": 28102,
+            "createdAt": 1720523874955,
+            "nav": 10166.5,
+            "navDate": "2024-07-09",
+            "productId": 75
+        },
+        {
+            "id": 28120,
+            "createdAt": 1720594108033,
+            "nav": 10288.09,
+            "navDate": "2024-07-10",
+            "productId": 75
+        },
+        {
+            "id": 28158,
+            "createdAt": 1720680731982,
+            "nav": 10273.22,
+            "navDate": "2024-07-11",
+            "productId": 75
+        },
+        {
+            "id": 28200,
+            "createdAt": 1720775111496,
+            "nav": 10250.15,
+            "navDate": "2024-07-12",
+            "productId": 75
+        },
+        {
+            "id": 28227,
+            "createdAt": 1721025916984,
+            "nav": 10216.6,
+            "navDate": "2024-07-15",
+            "productId": 75
+        },
+        {
+            "id": 28262,
+            "createdAt": 1721119146081,
+            "nav": 10298.93,
+            "navDate": "2024-07-16",
+            "productId": 75
+        },
+        {
+            "id": 28300,
+            "createdAt": 1721206774205,
+            "nav": 10270.73,
+            "navDate": "2024-07-17",
+            "productId": 75
+        },
+        {
+            "id": 28324,
+            "createdAt": 1721284801901,
+            "nav": 9896.31,
+            "navDate": "2024-07-18",
+            "productId": 75
+        },
+        {
+            "id": 28361,
+            "createdAt": 1721370936389,
+            "nav": 9946.48,
+            "navDate": "2024-07-19",
+            "productId": 75
+        },
+        {
+            "id": 28404,
+            "createdAt": 1721639279581,
+            "nav": 9844.15,
+            "navDate": "2024-07-22",
+            "productId": 75
+        },
+        {
+            "id": 28424,
+            "createdAt": 1721716702124,
+            "nav": 9678.98,
+            "navDate": "2024-07-23",
+            "productId": 75
+        },
+        {
+            "id": 28463,
+            "createdAt": 1721803921663,
+            "nav": 9589.21,
+            "navDate": "2024-07-24",
+            "productId": 75
+        },
+        {
+            "id": 28498,
+            "createdAt": 1721890080738,
+            "nav": 9644.1,
+            "navDate": "2024-07-25",
+            "productId": 75
+        },
+        {
+            "id": 28538,
+            "createdAt": 1721978028529,
+            "nav": 9648.61,
+            "navDate": "2024-07-26",
+            "productId": 75
+        },
+        {
+            "id": 28595,
+            "createdAt": 1722248978426,
+            "nav": 9684.52,
+            "navDate": "2024-07-29",
+            "productId": 75
+        },
+        {
+            "id": 28603,
+            "createdAt": 1722321534700,
+            "nav": 9709.56,
+            "navDate": "2024-07-30",
+            "productId": 75
+        },
+        {
+            "id": 28642,
+            "createdAt": 1722408552008,
+            "nav": 9666.42,
+            "navDate": "2024-07-31",
+            "productId": 75
+        },
+        {
+            "id": 28684,
+            "createdAt": 1722503443847,
+            "nav": 9658.63,
+            "navDate": "2024-08-01",
+            "productId": 75
+        },
+        {
+            "id": 28723,
+            "createdAt": 1722591928872,
+            "nav": 9557.97,
+            "navDate": "2024-08-02",
+            "productId": 75
+        },
+        {
+            "id": 28745,
+            "createdAt": 1722841952184,
+            "nav": 9593.48,
+            "navDate": "2024-08-05",
+            "productId": 75
+        },
+        {
+            "id": 28777,
+            "createdAt": 1722926235028,
+            "nav": 9467.08,
+            "navDate": "2024-08-06",
+            "productId": 75
+        },
+        {
+            "id": 28816,
+            "createdAt": 1723012666631,
+            "nav": 9526.13,
+            "navDate": "2024-08-07",
+            "productId": 75
+        },
+        {
+            "id": 28851,
+            "createdAt": 1723103028353,
+            "nav": 9523.22,
+            "navDate": "2024-08-08",
+            "productId": 75
+        },
+        {
+            "id": 28895,
+            "createdAt": 1723192901279,
+            "nav": 9517.79,
+            "navDate": "2024-08-09",
+            "productId": 75
+        },
+        {
+            "id": 28927,
+            "createdAt": 1723452646075,
+            "nav": 9546.44,
+            "navDate": "2024-08-12",
+            "productId": 75
+        },
+        {
+            "id": 28953,
+            "createdAt": 1723531367638,
+            "nav": 9573.96,
+            "navDate": "2024-08-13",
+            "productId": 75
+        },
+        {
+            "id": 28990,
+            "createdAt": 1723616747473,
+            "nav": 9562.69,
+            "navDate": "2024-08-14",
+            "productId": 75
+        },
+        {
+            "id": 29025,
+            "createdAt": 1723704836018,
+            "nav": 9540.59,
+            "navDate": "2024-08-15",
+            "productId": 75
+        },
+        {
+            "id": 29063,
+            "createdAt": 1723789994968,
+            "nav": 9476.4,
+            "navDate": "2024-08-16",
+            "productId": 75
+        },
+        {
+            "id": 29111,
+            "createdAt": 1724059021892,
+            "nav": 9689.54,
+            "navDate": "2024-08-19",
+            "productId": 75
+        },
+        {
+            "id": 29143,
+            "createdAt": 1724143911155,
+            "nav": 9747.82,
+            "navDate": "2024-08-20",
+            "productId": 75
+        },
+        {
+            "id": 29171,
+            "createdAt": 1724223380425,
+            "nav": 9795.73,
+            "navDate": "2024-08-21",
+            "productId": 75
+        },
+        {
+            "id": 29219,
+            "createdAt": 1724317557878,
+            "nav": 9869.71,
+            "navDate": "2024-08-22",
+            "productId": 75
+        },
+        {
+            "id": 29256,
+            "createdAt": 1724403990022,
+            "nav": 9882.92,
+            "navDate": "2024-08-23",
+            "productId": 75
+        },
+        {
+            "id": 29278,
+            "createdAt": 1724654791394,
+            "nav": 9836.08,
+            "navDate": "2024-08-26",
+            "productId": 75
+        },
+        {
+            "id": 29310,
+            "createdAt": 1724741376568,
+            "nav": 9751.26,
+            "navDate": "2024-08-27",
+            "productId": 75
+        },
+        {
+            "id": 30032,
+            "createdAt": 1724827468710,
+            "nav": 9719.94,
+            "navDate": "2024-08-28",
+            "productId": 75
+        },
+        {
+            "id": 30067,
+            "createdAt": 1724915135195,
+            "nav": 9755.76,
+            "navDate": "2024-08-29",
+            "productId": 75
+        },
+        {
+            "id": 30107,
+            "createdAt": 1725002433986,
+            "nav": 9725.99,
+            "navDate": "2024-08-30",
+            "productId": 75
+        },
+        {
+            "id": 30150,
+            "createdAt": 1725442534893,
+            "nav": 9750.2,
+            "navDate": "2024-09-04",
+            "productId": 75
+        },
+        {
+            "id": 30179,
+            "createdAt": 1725518660253,
+            "nav": 9725.47,
+            "navDate": "2024-09-05",
+            "productId": 75
+        },
+        {
+            "id": 30217,
+            "createdAt": 1725607025596,
+            "nav": 9695.0,
+            "navDate": "2024-09-06",
+            "productId": 75
+        },
+        {
+            "id": 30262,
+            "createdAt": 1725872926854,
+            "nav": 9714.79,
+            "navDate": "2024-09-09",
+            "productId": 75
+        },
+        {
+            "id": 30285,
+            "createdAt": 1725950038699,
+            "nav": 9688.88,
+            "navDate": "2024-09-10",
+            "productId": 75
+        },
+        {
+            "id": 30327,
+            "createdAt": 1726036561313,
+            "nav": 9660.14,
+            "navDate": "2024-09-11",
+            "productId": 75
+        },
+        {
+            "id": 30368,
+            "createdAt": 1726122576453,
+            "nav": 9648.99,
+            "navDate": "2024-09-12",
+            "productId": 75
+        },
+        {
+            "id": 30405,
+            "createdAt": 1726209687008,
+            "nav": 9674.65,
+            "navDate": "2024-09-13",
+            "productId": 75
+        },
+        {
+            "id": 30442,
+            "createdAt": 1726468367480,
+            "nav": 9685.42,
+            "navDate": "2024-09-16",
+            "productId": 75
+        },
+        {
+            "id": 30472,
+            "createdAt": 1726555626544,
+            "nav": 9609.05,
+            "navDate": "2024-09-17",
+            "productId": 75
+        },
+        {
+            "id": 30508,
+            "createdAt": 1726641700616,
+            "nav": 9639.34,
+            "navDate": "2024-09-18",
+            "productId": 75
+        },
+        {
+            "id": 30548,
+            "createdAt": 1726729948678,
+            "nav": 9665.11,
+            "navDate": "2024-09-19",
+            "productId": 75
+        },
+        {
+            "id": 30586,
+            "createdAt": 1726815447191,
+            "nav": 9694.15,
+            "navDate": "2024-09-20",
+            "productId": 75
+        },
+        {
+            "id": 30621,
+            "createdAt": 1727073529300,
+            "nav": 9669.23,
+            "navDate": "2024-09-23",
+            "productId": 75
+        },
+        {
+            "id": 30652,
+            "createdAt": 1727161372182,
+            "nav": 9653.65,
+            "navDate": "2024-09-24",
+            "productId": 75
+        },
+        {
+            "id": 30699,
+            "createdAt": 1727254457664,
+            "nav": 9713.86,
+            "navDate": "2024-09-25",
+            "productId": 75
+        },
+        {
+            "id": 30736,
+            "createdAt": 1727340530357,
+            "nav": 9869.7,
+            "navDate": "2024-09-26",
+            "productId": 75
+        },
+        {
+            "id": 30767,
+            "createdAt": 1727420313801,
+            "nav": 9869.65,
+            "navDate": "2024-09-27",
+            "productId": 75
+        },
+        {
+            "id": 30808,
+            "createdAt": 1727685415106,
+            "nav": 9879.76,
+            "navDate": "2024-09-30",
+            "productId": 75
+        },
+        {
+            "id": 30831,
+            "createdAt": 1727771866190,
+            "nav": 9867.02,
+            "navDate": "2024-10-01",
+            "productId": 75
+        },
+        {
+            "id": 30869,
+            "createdAt": 1727854881073,
+            "nav": 9854.02,
+            "navDate": "2024-10-02",
+            "productId": 75
+        },
+        {
+            "id": 30901,
+            "createdAt": 1727938785048,
+            "nav": 9801.67,
+            "navDate": "2024-10-03",
+            "productId": 75
+        },
+        {
+            "id": 30951,
+            "createdAt": 1728023681044,
+            "nav": 9678.55,
+            "navDate": "2024-10-04",
+            "productId": 75
+        },
+        {
+            "id": 30991,
+            "createdAt": 1728293789059,
+            "nav": 9671.61,
+            "navDate": "2024-10-07",
+            "productId": 75
+        },
+        {
+            "id": 31011,
+            "createdAt": 1728368910288,
+            "nav": 9673.89,
+            "navDate": "2024-10-08",
+            "productId": 75
+        },
+        {
+            "id": 31057,
+            "createdAt": 1728458387082,
+            "nav": 9732.86,
+            "navDate": "2024-10-09",
+            "productId": 75
+        },
+        {
+            "id": 31100,
+            "createdAt": 1728548779335,
+            "nav": 9769.48,
+            "navDate": "2024-10-10",
+            "productId": 75
+        },
+        {
+            "id": 31137,
+            "createdAt": 1728633638919,
+            "nav": 9765.56,
+            "navDate": "2024-10-11",
+            "productId": 75
+        },
+        {
+            "id": 31168,
+            "createdAt": 1728888722428,
+            "nav": 9772.07,
+            "navDate": "2024-10-14",
+            "productId": 75
+        },
+        {
+            "id": 31199,
+            "createdAt": 1728974657776,
+            "nav": 9768.88,
+            "navDate": "2024-10-15",
+            "productId": 75
+        },
+        {
+            "id": 31242,
+            "createdAt": 1729067589904,
+            "nav": 9693.47,
+            "navDate": "2024-10-16",
+            "productId": 75
+        },
+        {
+            "id": 31271,
+            "createdAt": 1729146740978,
+            "nav": 9670.05,
+            "navDate": "2024-10-17",
+            "productId": 75
+        },
+        {
+            "id": 31311,
+            "createdAt": 1729235048979,
+            "nav": 9684.75,
+            "navDate": "2024-10-18",
+            "productId": 75
+        },
+        {
+            "id": 31354,
+            "createdAt": 1729500965932,
+            "nav": 9630.13,
+            "navDate": "2024-10-21",
+            "productId": 75
+        },
+        {
+            "id": 31377,
+            "createdAt": 1729579618629,
+            "nav": 9526.72,
+            "navDate": "2024-10-22",
+            "productId": 75
+        },
+        {
+            "id": 31424,
+            "createdAt": 1729672806268,
+            "nav": 9447.26,
+            "navDate": "2024-10-23",
+            "productId": 75
+        },
+        {
+            "id": 31447,
+            "createdAt": 1729751654481,
+            "nav": 9481.77,
+            "navDate": "2024-10-24",
+            "productId": 75
+        },
+        {
+            "id": 31499,
+            "createdAt": 1729845151807,
+            "nav": 9434.08,
+            "navDate": "2024-10-25",
+            "productId": 75
+        },
+        {
+            "id": 31525,
+            "createdAt": 1730098134475,
+            "nav": 9420.74,
+            "navDate": "2024-10-28",
+            "productId": 75
+        },
+        {
+            "id": 31558,
+            "createdAt": 1730185243343,
+            "nav": 9456.35,
+            "navDate": "2024-10-29",
+            "productId": 75
+        },
+        {
+            "id": 31597,
+            "createdAt": 1730270395453,
+            "nav": 9504.18,
+            "navDate": "2024-10-30",
+            "productId": 75
+        },
+        {
+            "id": 31643,
+            "createdAt": 1730364711118,
+            "nav": 9542.91,
+            "navDate": "2024-10-31",
+            "productId": 75
+        },
+        {
+            "id": 31672,
+            "createdAt": 1730442523726,
+            "nav": 9520.05,
+            "navDate": "2024-11-01",
+            "productId": 75
+        },
+        {
+            "id": 31710,
+            "createdAt": 1730701745507,
+            "nav": 9470.1,
+            "navDate": "2024-11-04",
+            "productId": 75
+        },
+        {
+            "id": 31740,
+            "createdAt": 1730788122127,
+            "nav": 9472.25,
+            "navDate": "2024-11-05",
+            "productId": 75
+        },
+        {
+            "id": 31779,
+            "createdAt": 1730874089485,
+            "nav": 9478.79,
+            "navDate": "2024-11-06",
+            "productId": 75
+        },
+        {
+            "id": 31820,
+            "createdAt": 1730961181756,
+            "nav": 9503.97,
+            "navDate": "2024-11-07",
+            "productId": 75
+        },
+        {
+            "id": 31858,
+            "createdAt": 1731047443092,
+            "nav": 9567.15,
+            "navDate": "2024-11-08",
+            "productId": 75
+        },
+        {
+            "id": 31891,
+            "createdAt": 1731307336530,
+            "nav": 9649.01,
+            "navDate": "2024-11-11",
+            "productId": 75
+        },
+        {
+            "id": 31929,
+            "createdAt": 1731401573153,
+            "nav": 9709.81,
+            "navDate": "2024-11-12",
+            "productId": 75
+        },
+        {
+            "id": 31961,
+            "createdAt": 1731479220689,
+            "nav": 9675.77,
+            "navDate": "2024-11-13",
+            "productId": 75
+        },
+        {
+            "id": 31999,
+            "createdAt": 1731565693775,
+            "nav": 9670.39,
+            "navDate": "2024-11-14",
+            "productId": 75
+        },
+        {
+            "id": 32042,
+            "createdAt": 1731652181440,
+            "nav": 9608.12,
+            "navDate": "2024-11-15",
+            "productId": 75
+        },
+        {
+            "id": 32078,
+            "createdAt": 1731910893834,
+            "nav": 9518.39,
+            "navDate": "2024-11-18",
+            "productId": 75
+        },
+        {
+            "id": 32106,
+            "createdAt": 1731999349517,
+            "nav": 9494.33,
+            "navDate": "2024-11-19",
+            "productId": 75
+        },
+        {
+            "id": 32146,
+            "createdAt": 1732083816043,
+            "nav": 9309.06,
+            "navDate": "2024-11-20",
+            "productId": 75
+        },
+        {
+            "id": 32189,
+            "createdAt": 1732177713698,
+            "nav": 9342.78,
+            "navDate": "2024-11-21",
+            "productId": 75
+        },
+        {
+            "id": 32224,
+            "createdAt": 1732256550533,
+            "nav": 9395.46,
+            "navDate": "2024-11-22",
+            "productId": 75
+        },
+        {
+            "id": 32262,
+            "createdAt": 1732516021265,
+            "nav": 9360.0,
+            "navDate": "2024-11-25",
+            "productId": 75
+        },
+        {
+            "id": 32290,
+            "createdAt": 1732601860263,
+            "nav": 9371.37,
+            "navDate": "2024-11-26",
+            "productId": 75
+        },
+        {
+            "id": 32333,
+            "createdAt": 1732688681520,
+            "nav": 9380.77,
+            "navDate": "2024-11-27",
+            "productId": 75
+        },
+        {
+            "id": 32371,
+            "createdAt": 1732774916493,
+            "nav": 9443.37,
+            "navDate": "2024-11-28",
+            "productId": 75
+        },
+        {
+            "id": 32409,
+            "createdAt": 1732861356811,
+            "nav": 9448.14,
+            "navDate": "2024-11-29",
+            "productId": 75
+        },
+        {
+            "id": 32446,
+            "createdAt": 1733122254733,
+            "nav": 9528.76,
+            "navDate": "2024-12-02",
+            "productId": 75
+        },
+        {
+            "id": 32474,
+            "createdAt": 1733206752963,
+            "nav": 9550.08,
+            "navDate": "2024-12-03",
+            "productId": 75
+        },
+        {
+            "id": 32514,
+            "createdAt": 1733293548295,
+            "nav": 9588.4,
+            "navDate": "2024-12-04",
+            "productId": 75
+        },
+        {
+            "id": 32556,
+            "createdAt": 1733387242398,
+            "nav": 9519.44,
+            "navDate": "2024-12-05",
+            "productId": 75
+        },
+        {
+            "id": 32591,
+            "createdAt": 1733466578296,
+            "nav": 9598.71,
+            "navDate": "2024-12-06",
+            "productId": 75
+        },
+        {
+            "id": 32628,
+            "createdAt": 1733725244343,
+            "nav": 9612.33,
+            "navDate": "2024-12-09",
+            "productId": 75
+        },
+        {
+            "id": 32656,
+            "createdAt": 1733811897074,
+            "nav": 9605.19,
+            "navDate": "2024-12-10",
+            "productId": 75
+        },
+        {
+            "id": 32696,
+            "createdAt": 1733898615816,
+            "nav": 9628.93,
+            "navDate": "2024-12-11",
+            "productId": 75
+        },
+        {
+            "id": 32735,
+            "createdAt": 1733984883649,
+            "nav": 9643.03,
+            "navDate": "2024-12-12",
+            "productId": 75
+        },
+        {
+            "id": 32774,
+            "createdAt": 1734071246246,
+            "nav": 9597.17,
+            "navDate": "2024-12-13",
+            "productId": 75
+        },
+        {
+            "id": 32809,
+            "createdAt": 1734330148838,
+            "nav": 9565.57,
+            "navDate": "2024-12-16",
+            "productId": 75
+        },
+        {
+            "id": 32837,
+            "createdAt": 1734430623646,
+            "nav": 9607.99,
+            "navDate": "2024-12-17",
+            "productId": 75
+        },
+        {
+            "id": 32877,
+            "createdAt": 1734503995967,
+            "nav": 9615.58,
+            "navDate": "2024-12-18",
+            "productId": 75
+        },
+        {
+            "id": 32917,
+            "createdAt": 1734590191534,
+            "nav": 9672.04,
+            "navDate": "2024-12-19",
+            "productId": 75
+        },
+        {
+            "id": 32966,
+            "createdAt": 1734683279801,
+            "nav": 9684.09,
+            "navDate": "2024-12-20",
+            "productId": 75
+        },
+        {
+            "id": 32995,
+            "createdAt": 1734944479679,
+            "nav": 9805.97,
+            "navDate": "2024-12-23",
+            "productId": 75
+        },
+        {
+            "id": 33025,
+            "createdAt": 1735021639891,
+            "nav": 9821.69,
+            "navDate": "2024-12-24",
+            "productId": 75
+        },
+        {
+            "id": 33080,
+            "createdAt": 1735116536105,
+            "nav": 9895.99,
+            "navDate": "2024-12-25",
+            "productId": 75
+        },
+        {
+            "id": 33112,
+            "createdAt": 1735195872038,
+            "nav": 9897.49,
+            "navDate": "2024-12-26",
+            "productId": 75
+        },
+        {
+            "id": 33175,
+            "createdAt": 1735293811014,
+            "nav": 9842.91,
+            "navDate": "2024-12-27",
+            "productId": 75
+        },
+        {
+            "id": 33188,
+            "createdAt": 1735542197332,
+            "nav": 9752.15,
+            "navDate": "2024-12-30",
+            "productId": 75
+        },
+        {
+            "id": 33218,
+            "createdAt": 1735626971320,
+            "nav": 9733.15,
+            "navDate": "2024-12-31",
+            "productId": 75
+        },
+        {
+            "id": 33256,
+            "createdAt": 1735799361141,
+            "nav": 9727.97,
+            "navDate": "2025-01-02",
+            "productId": 75
+        },
+        {
+            "id": 33309,
+            "createdAt": 1735887222730,
+            "nav": 9745.41,
+            "navDate": "2025-01-03",
+            "productId": 75
+        },
+        {
+            "id": 33360,
+            "createdAt": 1736156150895,
+            "nav": 9690.66,
+            "navDate": "2025-01-06",
+            "productId": 75
+        },
+        {
+            "id": 33374,
+            "createdAt": 1736231952956,
+            "nav": 9596.87,
+            "navDate": "2025-01-07",
+            "productId": 75
+        },
+        {
+            "id": 33418,
+            "createdAt": 1736319147026,
+            "nav": 9640.55,
+            "navDate": "2025-01-08",
+            "productId": 75
+        },
+        {
+            "id": 33460,
+            "createdAt": 1736404815700,
+            "nav": 9622.85,
+            "navDate": "2025-01-09",
+            "productId": 75
+        },
+        {
+            "id": 33519,
+            "createdAt": 1736504389351,
+            "nav": 9576.9,
+            "navDate": "2025-01-10",
+            "productId": 75
+        },
+        {
+            "id": 33544,
+            "createdAt": 1736757391592,
+            "nav": 9430.83,
+            "navDate": "2025-01-13",
+            "productId": 75
+        },
+        {
+            "id": 33568,
+            "createdAt": 1736838874447,
+            "nav": 9459.57,
+            "navDate": "2025-01-14",
+            "productId": 75
+        },
+        {
+            "id": 33608,
+            "createdAt": 1736923236234,
+            "nav": 9414.1,
+            "navDate": "2025-01-15",
+            "productId": 75
+        },
+        {
+            "id": 33643,
+            "createdAt": 1737009103847,
+            "nav": 9505.9,
+            "navDate": "2025-01-16",
+            "productId": 75
+        },
+        {
+            "id": 33691,
+            "createdAt": 1737095498791,
+            "nav": 9527.59,
+            "navDate": "2025-01-17",
+            "productId": 75
+        },
+        {
+            "id": 33726,
+            "createdAt": 1737355690972,
+            "nav": 9639.99,
+            "navDate": "2025-01-20",
+            "productId": 75
+        },
+        {
+            "id": 33759,
+            "createdAt": 1737441264326,
+            "nav": 9630.15,
+            "navDate": "2025-01-21",
+            "productId": 75
+        },
+        {
+            "id": 33815,
+            "createdAt": 1737536600973,
+            "nav": 9723.0,
+            "navDate": "2025-01-22",
+            "productId": 75
+        },
+        {
+            "id": 33852,
+            "createdAt": 1737620841184,
+            "nav": 9731.45,
+            "navDate": "2025-01-23",
+            "productId": 75
+        },
+        {
+            "id": 33885,
+            "createdAt": 1737703461015,
+            "nav": 9768.94,
+            "navDate": "2025-01-24",
+            "productId": 75
+        },
+        {
+            "id": 33918,
+            "createdAt": 1738572231286,
+            "nav": 9705.49,
+            "navDate": "2025-02-03",
+            "productId": 75
+        },
+        {
+            "id": 33947,
+            "createdAt": 1738652098531,
+            "nav": 9521.88,
+            "navDate": "2025-02-04",
+            "productId": 75
+        },
+        {
+            "id": 33997,
+            "createdAt": 1738745082703,
+            "nav": 9622.0,
+            "navDate": "2025-02-05",
+            "productId": 75
+        },
+        {
+            "id": 34032,
+            "createdAt": 1738825037995,
+            "nav": 9670.55,
+            "navDate": "2025-02-06",
+            "productId": 75
+        },
+        {
+            "id": 34070,
+            "createdAt": 1738909772053,
+            "nav": 9678.93,
+            "navDate": "2025-02-07",
+            "productId": 75
+        },
+        {
+            "id": 34108,
+            "createdAt": 1739169806918,
+            "nav": 9642.7,
+            "navDate": "2025-02-10",
+            "productId": 75
+        },
+        {
+            "id": 34138,
+            "createdAt": 1739255378653,
+            "nav": 9486.76,
+            "navDate": "2025-02-11",
+            "productId": 75
+        },
+        {
+            "id": 34182,
+            "createdAt": 1739342299499,
+            "nav": 9530.01,
+            "navDate": "2025-02-12",
+            "productId": 75
+        },
+        {
+            "id": 34220,
+            "createdAt": 1739429349272,
+            "nav": 9524.53,
+            "navDate": "2025-02-13",
+            "productId": 75
+        },
+        {
+            "id": 34260,
+            "createdAt": 1739515400928,
+            "nav": 9546.08,
+            "navDate": "2025-02-14",
+            "productId": 75
+        },
+        {
+            "id": 34298,
+            "createdAt": 1739774215905,
+            "nav": 9586.96,
+            "navDate": "2025-02-17",
+            "productId": 75
+        },
+        {
+            "id": 34331,
+            "createdAt": 1739862277738,
+            "nav": 9619.85,
+            "navDate": "2025-02-18",
+            "productId": 75
+        },
+        {
+            "id": 34372,
+            "createdAt": 1739946522642,
+            "nav": 9627.05,
+            "navDate": "2025-02-19",
+            "productId": 75
+        },
+        {
+            "id": 34413,
+            "createdAt": 1740033409430,
+            "nav": 9688.27,
+            "navDate": "2025-02-20",
+            "productId": 75
+        },
+        {
+            "id": 34455,
+            "createdAt": 1740119024222,
+            "nav": 9667.45,
+            "navDate": "2025-02-21",
+            "productId": 75
+        },
+        {
+            "id": 34492,
+            "createdAt": 1740377657962,
+            "nav": 9675.26,
+            "navDate": "2025-02-24",
+            "productId": 75
+        },
+        {
+            "id": 34523,
+            "createdAt": 1740464505700,
+            "nav": 9711.4,
+            "navDate": "2025-02-25",
+            "productId": 75
+        },
+        {
+            "id": 34567,
+            "createdAt": 1740552252952,
+            "nav": 9726.82,
+            "navDate": "2025-02-26",
+            "productId": 75
+        },
+        {
+            "id": 34608,
+            "createdAt": 1740645691534,
+            "nav": 9789.4,
+            "navDate": "2025-02-27",
+            "productId": 75
+        },
+        {
+            "id": 34662,
+            "createdAt": 1740733972567,
+            "nav": 9800.6,
+            "navDate": "2025-02-28",
+            "productId": 75
+        },
+        {
+            "id": 34677,
+            "createdAt": 1740983493385,
+            "nav": 9736.97,
+            "navDate": "2025-03-03",
+            "productId": 75
+        },
+        {
+            "id": 34713,
+            "createdAt": 1741069362621,
+            "nav": 9741.38,
+            "navDate": "2025-03-04",
+            "productId": 75
+        },
+        {
+            "id": 34758,
+            "createdAt": 1741155453836,
+            "nav": 9706.0,
+            "navDate": "2025-03-05",
+            "productId": 75
+        },
+        {
+            "id": 34793,
+            "createdAt": 1741242024355,
+            "nav": 9605.26,
+            "navDate": "2025-03-06",
+            "productId": 75
+        },
+        {
+            "id": 34844,
+            "createdAt": 1741336369290,
+            "nav": 9682.15,
+            "navDate": "2025-03-07",
+            "productId": 75
+        },
+        {
+            "id": 34873,
+            "createdAt": 1741587691449,
+            "nav": 9672.96,
+            "navDate": "2025-03-10",
+            "productId": 75
+        },
+        {
+            "id": 34908,
+            "createdAt": 1741674348880,
+            "nav": 9682.55,
+            "navDate": "2025-03-11",
+            "productId": 75
+        },
+        {
+            "id": 34950,
+            "createdAt": 1741760593887,
+            "nav": 9674.44,
+            "navDate": "2025-03-12",
+            "productId": 75
+        },
+        {
+            "id": 34990,
+            "createdAt": 1741846485612,
+            "nav": 9655.26,
+            "navDate": "2025-03-13",
+            "productId": 75
+        },
+        {
+            "id": 35029,
+            "createdAt": 1741933317548,
+            "nav": 9559.31,
+            "navDate": "2025-03-14",
+            "productId": 75
+        },
+        {
+            "id": 35066,
+            "createdAt": 1742192305690,
+            "nav": 9515.48,
+            "navDate": "2025-03-17",
+            "productId": 75
+        },
+        {
+            "id": 35099,
+            "createdAt": 1742278852224,
+            "nav": 9552.27,
+            "navDate": "2025-03-18",
+            "productId": 75
+        },
+        {
+            "id": 35138,
+            "createdAt": 1742365401385,
+            "nav": 9472.93,
+            "navDate": "2025-03-19",
+            "productId": 75
+        },
+        {
+            "id": 35181,
+            "createdAt": 1742456099357,
+            "nav": 9398.32,
+            "navDate": "2025-03-20",
+            "productId": 75
+        },
+        {
+            "id": 35228,
+            "createdAt": 1742545583922,
+            "nav": 9317.34,
+            "navDate": "2025-03-21",
+            "productId": 75
+        },
+        {
+            "id": 35270,
+            "createdAt": 1742805077850,
+            "nav": 9344.98,
+            "navDate": "2025-03-24",
+            "productId": 75
+        },
+        {
+            "id": 35292,
+            "createdAt": 1742883865933,
+            "nav": 9399.08,
+            "navDate": "2025-03-25",
+            "productId": 75
+        },
+        {
+            "id": 35340,
+            "createdAt": 1742977824536,
+            "nav": 9365.5,
+            "navDate": "2025-03-26",
+            "productId": 75
+        },
+        {
+            "id": 35375,
+            "createdAt": 1743056524509,
+            "nav": 9330.9,
+            "navDate": "2025-03-27",
+            "productId": 75
+        },
+        {
+            "id": 35417,
+            "createdAt": 1743143326522,
+            "nav": 9315.41,
+            "navDate": "2025-03-28",
+            "productId": 75
+        },
+        {
+            "id": 35455,
+            "createdAt": 1743405394676,
+            "nav": 9258.09,
+            "navDate": "2025-03-31",
+            "productId": 75
+        },
+        {
+            "id": 35486,
+            "createdAt": 1743488599203,
+            "nav": 9219.06,
+            "navDate": "2025-04-01",
+            "productId": 75
+        },
+        {
+            "id": 35535,
+            "createdAt": 1743575493945,
+            "nav": 9268.86,
+            "navDate": "2025-04-02",
+            "productId": 75
+        },
+        {
+            "id": 35575,
+            "createdAt": 1743662358660,
+            "nav": 9264.22,
+            "navDate": "2025-04-03",
+            "productId": 75
+        },
+        {
+            "id": 35619,
+            "createdAt": 1743747640190,
+            "nav": 8793.29,
+            "navDate": "2025-04-04",
+            "productId": 75
+        },
+        {
+            "id": 35653,
+            "createdAt": 1744095005989,
+            "nav": 8882.38,
+            "navDate": "2025-04-08",
+            "productId": 75
+        },
+        {
+            "id": 35701,
+            "createdAt": 1744181008651,
+            "nav": 8174.73,
+            "navDate": "2025-04-09",
+            "productId": 75
+        },
+        {
+            "id": 35744,
+            "createdAt": 1744266230222,
+            "nav": 7961.79,
+            "navDate": "2025-04-10",
+            "productId": 75
+        },
+        {
+            "id": 35787,
+            "createdAt": 1744353520061,
+            "nav": 8622.49,
+            "navDate": "2025-04-11",
+            "productId": 75
+        },
+        {
+            "id": 35823,
+            "createdAt": 1744611827565,
+            "nav": 8936.99,
+            "navDate": "2025-04-14",
+            "productId": 75
+        },
+        {
+            "id": 35858,
+            "createdAt": 1744698092946,
+            "nav": 9087.61,
+            "navDate": "2025-04-15",
+            "productId": 75
+        },
+        {
+            "id": 35918,
+            "createdAt": 1744793119670,
+            "nav": 9067.43,
+            "navDate": "2025-04-16",
+            "productId": 75
+        },
+        {
+            "id": 35947,
+            "createdAt": 1744877952824,
+            "nav": 8962.05,
+            "navDate": "2025-04-17",
+            "productId": 75
+        },
+        {
+            "id": 35997,
+            "createdAt": 1744966205776,
+            "nav": 9088.73,
+            "navDate": "2025-04-18",
+            "productId": 75
+        },
+        {
+            "id": 36025,
+            "createdAt": 1745217528891,
+            "nav": 9018.4,
+            "navDate": "2025-04-21",
+            "productId": 75
+        },
+        {
+            "id": 36059,
+            "createdAt": 1745303210920,
+            "nav": 8923.23,
+            "navDate": "2025-04-22",
+            "productId": 75
+        },
+        {
+            "id": 36119,
+            "createdAt": 1745397793732,
+            "nav": 8891.8,
+            "navDate": "2025-04-23",
+            "productId": 75
+        },
+        {
+            "id": 36158,
+            "createdAt": 1745483476304,
+            "nav": 8987.46,
+            "navDate": "2025-04-24",
+            "productId": 75
+        },
+        {
+            "id": 36211,
+            "createdAt": 1745570915395,
+            "nav": 9023.29,
+            "navDate": "2025-04-25",
+            "productId": 75
+        },
+        {
+            "id": 36226,
+            "createdAt": 1745821556321,
+            "nav": 9065.51,
+            "navDate": "2025-04-28",
+            "productId": 75
+        },
+        {
+            "id": 36262,
+            "createdAt": 1745910177766,
+            "nav": 9080.19,
+            "navDate": "2025-04-29",
+            "productId": 75
+        },
+        {
+            "id": 36304,
+            "createdAt": 1746426560477,
+            "nav": 9094.47,
+            "navDate": "2025-05-05",
+            "productId": 75
+        },
+        {
+            "id": 36347,
+            "createdAt": 1746514360300,
+            "nav": 9232.71,
+            "navDate": "2025-05-06",
+            "productId": 75
+        },
+        {
+            "id": 36396,
+            "createdAt": 1746600187938,
+            "nav": 9315.81,
+            "navDate": "2025-05-07",
+            "productId": 75
+        },
+        {
+            "id": 36441,
+            "createdAt": 1746685590414,
+            "nav": 9480.31,
+            "navDate": "2025-05-08",
+            "productId": 75
+        },
+        {
+            "id": 36484,
+            "createdAt": 1746774168457,
+            "nav": 9501.02,
+            "navDate": "2025-05-09",
+            "productId": 75
+        },
+        {
+            "id": 36523,
+            "createdAt": 1747031127174,
+            "nav": 9486.39,
+            "navDate": "2025-05-12",
+            "productId": 75
+        },
+        {
+            "id": 36557,
+            "createdAt": 1747117728363,
+            "nav": 9583.02,
+            "navDate": "2025-05-13",
+            "productId": 75
+        },
+        {
+            "id": 36604,
+            "createdAt": 1747204215731,
+            "nav": 9666.97,
+            "navDate": "2025-05-14",
+            "productId": 75
+        },
+        {
+            "id": 36661,
+            "createdAt": 1747297669940,
+            "nav": 9682.74,
+            "navDate": "2025-05-15",
+            "productId": 75
+        },
+        {
+            "id": 36688,
+            "createdAt": 1747376475077,
+            "nav": 9688.89,
+            "navDate": "2025-05-16",
+            "productId": 75
+        },
+        {
+            "id": 37560,
+            "createdAt": 1747635850652,
+            "nav": 9647.88,
+            "navDate": "2025-05-19",
+            "productId": 75
+        },
+        {
+            "id": 37598,
+            "createdAt": 1747722833216,
+            "nav": 9634.85,
+            "navDate": "2025-05-20",
+            "productId": 75
+        },
+        {
+            "id": 37648,
+            "createdAt": 1747808386012,
+            "nav": 9643.01,
+            "navDate": "2025-05-21",
+            "productId": 75
+        },
+        {
+            "id": 37691,
+            "createdAt": 1747897782091,
+            "nav": 9791.03,
+            "navDate": "2025-05-22",
+            "productId": 75
+        },
+        {
+            "id": 37737,
+            "createdAt": 1747983624300,
+            "nav": 9790.53,
+            "navDate": "2025-05-23",
+            "productId": 75
+        },
+        {
+            "id": 37798,
+            "createdAt": 1748251789209,
+            "nav": 9753.54,
+            "navDate": "2025-05-26",
+            "productId": 75
+        },
+        {
+            "id": 37812,
+            "createdAt": 1748327173146,
+            "nav": 9870.79,
+            "navDate": "2025-05-27",
+            "productId": 75
+        },
+        {
+            "id": 37860,
+            "createdAt": 1748413413457,
+            "nav": 10042.2,
+            "navDate": "2025-05-28",
+            "productId": 75
+        },
+        {
+            "id": 37921,
+            "createdAt": 1748507629551,
+            "nav": 9981.64,
+            "navDate": "2025-05-29",
+            "productId": 75
+        },
+        {
+            "id": 37962,
+            "createdAt": 1748586775184,
+            "nav": 10052.16,
+            "navDate": "2025-05-30",
+            "productId": 75
+        },
+        {
+            "id": 37999,
+            "createdAt": 1748845763438,
+            "nav": 9943.83,
+            "navDate": "2025-06-02",
+            "productId": 75
+        },
+        {
+            "id": 38036,
+            "createdAt": 1748932036861,
+            "nav": 10119.51,
+            "navDate": "2025-06-03",
+            "productId": 75
+        },
+        {
+            "id": 38091,
+            "createdAt": 1749018647654,
+            "nav": 10164.1,
+            "navDate": "2025-06-04",
+            "productId": 75
+        },
+        {
+            "id": 38136,
+            "createdAt": 1749104737355,
+            "nav": 10188.63,
+            "navDate": "2025-06-05",
+            "productId": 75
+        },
+        {
+            "id": 38181,
+            "createdAt": 1749191771969,
+            "nav": 10209.22,
+            "navDate": "2025-06-06",
+            "productId": 75
+        },
+        {
+            "id": 38224,
+            "createdAt": 1749450276082,
+            "nav": 10103.87,
+            "navDate": "2025-06-09",
+            "productId": 75
+        },
+        {
+            "id": 38263,
+            "createdAt": 1749536868868,
+            "nav": 10038.12,
+            "navDate": "2025-06-10",
+            "productId": 75
+        },
+        {
+            "id": 38310,
+            "createdAt": 1749623455803,
+            "nav": 10048.44,
+            "navDate": "2025-06-11",
+            "productId": 75
+        },
+        {
+            "id": 38370,
+            "createdAt": 1749717681585,
+            "nav": 10057.73,
+            "navDate": "2025-06-12",
+            "productId": 75
+        },
+        {
+            "id": 38403,
+            "createdAt": 1749796064140,
+            "nav": 10114.67,
+            "navDate": "2025-06-13",
+            "productId": 75
+        },
+        {
+            "id": 38444,
+            "createdAt": 1750056184167,
+            "nav": 10004.52,
+            "navDate": "2025-06-16",
+            "productId": 75
+        },
+        {
+            "id": 38482,
+            "createdAt": 1750142222382,
+            "nav": 10119.12,
+            "navDate": "2025-06-17",
+            "productId": 75
+        },
+        {
+            "id": 38532,
+            "createdAt": 1750228770452,
+            "nav": 10187.96,
+            "navDate": "2025-06-18",
+            "productId": 75
+        },
+        {
+            "id": 38574,
+            "createdAt": 1750315381157,
+            "nav": 10186.26,
+            "navDate": "2025-06-19",
+            "productId": 75
+        },
+        {
+            "id": 38623,
+            "createdAt": 1750400878230,
+            "nav": 10129.61,
+            "navDate": "2025-06-20",
+            "productId": 75
+        },
+        {
+            "id": 38681,
+            "createdAt": 1750670089001,
+            "nav": 10093.64,
+            "navDate": "2025-06-23",
+            "productId": 75
+        },
+        {
+            "id": 38763,
+            "createdAt": 1750747405367,
+            "nav": 10113.11,
+            "navDate": "2025-06-24",
+            "productId": 75
+        },
+        {
+            "id": 38811,
+            "createdAt": 1750833109423,
+            "nav": 10121.39,
+            "navDate": "2025-06-25",
+            "productId": 75
+        },
+        {
+            "id": 38856,
+            "createdAt": 1750919989909,
+            "nav": 10107.75,
+            "navDate": "2025-06-26",
+            "productId": 75
+        },
+        {
+            "id": 38906,
+            "createdAt": 1751007153048,
+            "nav": 10088.69,
+            "navDate": "2025-06-27",
+            "productId": 75
+        },
+        {
+            "id": 38962,
+            "createdAt": 1751274111372,
+            "nav": 10089.2,
+            "navDate": "2025-06-30",
+            "productId": 75
+        },
+        {
+            "id": 38982,
+            "createdAt": 1751352247122,
+            "nav": 10147.13,
+            "navDate": "2025-07-01",
+            "productId": 75
+        },
+        {
+            "id": 39063,
+            "createdAt": 1751452295484,
+            "nav": 10231.3,
+            "navDate": "2025-07-02",
+            "productId": 75
+        },
+        {
+            "id": 39076,
+            "createdAt": 1751523852170,
+            "nav": 10323.35,
+            "navDate": "2025-07-03",
+            "productId": 75
+        },
+        {
+            "id": 39131,
+            "createdAt": 1751617677560,
+            "nav": 10241.48,
+            "navDate": "2025-07-04",
+            "productId": 75
+        },
+        {
+            "id": 39161,
+            "createdAt": 1751869866596,
+            "nav": 10278.06,
+            "navDate": "2025-07-07",
+            "productId": 75
+        },
+        {
+            "id": 39203,
+            "createdAt": 1751956417984,
+            "nav": 10314.98,
+            "navDate": "2025-07-08",
+            "productId": 75
+        },
+        {
+            "id": 39251,
+            "createdAt": 1752043124421,
+            "nav": 10380.6,
+            "navDate": "2025-07-09",
+            "productId": 75
+        },
+        {
+            "id": 39298,
+            "createdAt": 1752129296185,
+            "nav": 10397.97,
+            "navDate": "2025-07-10",
+            "productId": 75
+        },
+        {
+            "id": 39345,
+            "createdAt": 1752216598227,
+            "nav": 10425.36,
+            "navDate": "2025-07-11",
+            "productId": 75
+        },
+        {
+            "id": 39387,
+            "createdAt": 1752474864911,
+            "nav": 10375.64,
+            "navDate": "2025-07-14",
+            "productId": 75
+        },
+        {
+            "id": 39424,
+            "createdAt": 1752562068008,
+            "nav": 10452.98,
+            "navDate": "2025-07-15",
+            "productId": 75
+        },
+        {
+            "id": 39473,
+            "createdAt": 1752647369717,
+            "nav": 10406.59,
+            "navDate": "2025-07-16",
+            "productId": 75
+        },
+        {
+            "id": 39518,
+            "createdAt": 1752734656934,
+            "nav": 10550.12,
+            "navDate": "2025-07-17",
+            "productId": 75
+        },
+        {
+            "id": 39566,
+            "createdAt": 1752820825863,
+            "nav": 10695.01,
+            "navDate": "2025-07-18",
+            "productId": 75
+        },
+        {
+            "id": 39607,
+            "createdAt": 1753079574486,
+            "nav": 10712.57,
+            "navDate": "2025-07-21",
+            "productId": 75
+        },
+        {
+            "id": 39642,
+            "createdAt": 1753165344123,
+            "nav": 10652.48,
+            "navDate": "2025-07-22",
+            "productId": 75
+        },
+        {
+            "id": 39696,
+            "createdAt": 1753253892241,
+            "nav": 10791.79,
+            "navDate": "2025-07-23",
+            "productId": 75
+        },
+        {
+            "id": 39740,
+            "createdAt": 1753339073630,
+            "nav": 10947.31,
+            "navDate": "2025-07-24",
+            "productId": 75
+        },
+        {
+            "id": 39821,
+            "createdAt": 1753671169389,
+            "nav": 10943.81,
+            "navDate": "2025-07-25",
+            "productId": 75
+        },
+        {
+            "id": 39838,
+            "createdAt": 1753692105781,
+            "nav": 11122.17,
+            "navDate": "2025-07-28",
+            "productId": 75
+        },
+        {
+            "id": 39868,
+            "createdAt": 1753772033469,
+            "nav": 11324.35,
+            "navDate": "2025-07-29",
+            "productId": 75
+        },
+        {
+            "id": 39918,
+            "createdAt": 1753857686594,
+            "nav": 10894.13,
+            "navDate": "2025-07-30",
+            "productId": 75
+        },
+        {
+            "id": 39964,
+            "createdAt": 1753945986185,
+            "nav": 11082.94,
+            "navDate": "2025-07-31",
+            "productId": 75
+        },
+        {
+            "id": 40013,
+            "createdAt": 1754030900637,
+            "nav": 11100.46,
+            "navDate": "2025-08-01",
+            "productId": 75
+        },
+        {
+            "id": 40054,
+            "createdAt": 1754288644804,
+            "nav": 11117.4,
+            "navDate": "2025-08-04",
+            "productId": 75
+        },
+        {
+            "id": 40134,
+            "createdAt": 1754390697570,
+            "nav": 11144.54,
+            "navDate": "2025-08-05",
+            "productId": 75
+        },
+        {
+            "id": 40145,
+            "createdAt": 1754462848904,
+            "nav": 11012.26,
+            "navDate": "2025-08-06",
+            "productId": 75
+        },
+        {
+            "id": 40221,
+            "createdAt": 1754560929391,
+            "nav": 11100.84,
+            "navDate": "2025-08-07",
+            "productId": 75
+        },
+        {
+            "id": 40238,
+            "createdAt": 1754637685826,
+            "nav": 11191.45,
+            "navDate": "2025-08-08",
+            "productId": 75
+        },
+        {
+            "id": 40279,
+            "createdAt": 1754895062989,
+            "nav": 11256.68,
+            "navDate": "2025-08-11",
+            "productId": 75
+        },
+        {
+            "id": 40316,
+            "createdAt": 1754982574685,
+            "nav": 11326.09,
+            "navDate": "2025-08-12",
+            "productId": 75
+        },
+        {
+            "id": 40365,
+            "createdAt": 1755067537099,
+            "nav": 11308.3,
+            "navDate": "2025-08-13",
+            "productId": 75
+        },
+        {
+            "id": 40448,
+            "createdAt": 1755166369694,
+            "nav": 11337.49,
+            "navDate": "2025-08-14",
+            "productId": 75
+        },
+        {
+            "id": 40476,
+            "createdAt": 1755249243768,
+            "nav": 11452.95,
+            "navDate": "2025-08-15",
+            "productId": 75
+        },
+        {
+            "id": 40520,
+            "createdAt": 1755509456489,
+            "nav": 11271.14,
+            "navDate": "2025-08-18",
+            "productId": 75
+        },
+        {
+            "id": 40573,
+            "createdAt": 1755599959616,
+            "nav": 11271.16,
+            "navDate": "2025-08-19",
+            "productId": 75
+        },
+        {
+            "id": 40601,
+            "createdAt": 1755683214317,
+            "nav": 11358.68,
+            "navDate": "2025-08-20",
+            "productId": 75
+        },
+        {
+            "id": 40655,
+            "createdAt": 1755767731104,
+            "nav": 11264.59,
+            "navDate": "2025-08-21",
+            "productId": 75
+        },
+        {
+            "id": 40683,
+            "createdAt": 1755844730260,
+            "nav": 11256.3,
+            "navDate": "2025-08-22",
+            "productId": 75
+        },
+        {
+            "id": 40724,
+            "createdAt": 1756103799167,
+            "nav": 10944.31,
+            "navDate": "2025-08-25",
+            "productId": 75
+        },
+        {
+            "id": 40763,
+            "createdAt": 1756192724145,
+            "nav": 10804.68,
+            "navDate": "2025-08-26",
+            "productId": 75
+        },
+        {
+            "id": 40812,
+            "createdAt": 1756275895144,
+            "nav": 11021.95,
+            "navDate": "2025-08-27",
+            "productId": 75
+        },
+        {
+            "id": 40856,
+            "createdAt": 1756362169192,
+            "nav": 11036.26,
+            "navDate": "2025-08-28",
+            "productId": 75
+        },
+        {
+            "id": 40906,
+            "createdAt": 1756449706301,
+            "nav": 11061.68,
+            "navDate": "2025-08-29",
+            "productId": 75
+        },
+        {
+            "id": 40944,
+            "createdAt": 1756884300755,
+            "nav": 11065.72,
+            "navDate": "2025-09-03",
+            "productId": 75
+        },
+        {
+            "id": 40990,
+            "createdAt": 1756967552578,
+            "nav": 11098.1,
+            "navDate": "2025-09-04",
+            "productId": 75
+        },
+        {
+            "id": 41069,
+            "createdAt": 1757065407574,
+            "nav": 11173.77,
+            "navDate": "2025-09-05",
+            "productId": 75
+        },
+        {
+            "id": 41080,
+            "createdAt": 1757313923021,
+            "nav": 11046.52,
+            "navDate": "2025-09-08",
+            "productId": 75
+        },
+        {
+            "id": 41119,
+            "createdAt": 1757399233362,
+            "nav": 10890.8,
+            "navDate": "2025-09-09",
+            "productId": 75
+        },
+        {
+            "id": 41170,
+            "createdAt": 1757485857592,
+            "nav": 10980.16,
+            "navDate": "2025-09-10",
+            "productId": 75
+        },
+        {
+            "id": 41213,
+            "createdAt": 1757575735875,
+            "nav": 10973.73,
+            "navDate": "2025-09-11",
+            "productId": 75
+        },
+        {
+            "id": 41264,
+            "createdAt": 1757659921191,
+            "nav": 11048.91,
+            "navDate": "2025-09-12",
+            "productId": 75
+        },
+        {
+            "id": 41305,
+            "createdAt": 1757920263056,
+            "nav": 11211.91,
+            "navDate": "2025-09-15",
+            "productId": 75
+        },
+        {
+            "id": 41344,
+            "createdAt": 1758004488435,
+            "nav": 11372.15,
+            "navDate": "2025-09-16",
+            "productId": 75
+        },
+        {
+            "id": 41397,
+            "createdAt": 1758092059764,
+            "nav": 11330.45,
+            "navDate": "2025-09-17",
+            "productId": 75
+        },
+        {
+            "id": 41441,
+            "createdAt": 1758176575767,
+            "nav": 11294.47,
+            "navDate": "2025-09-18",
+            "productId": 75
+        },
+        {
+            "id": 41491,
+            "createdAt": 1758264003631,
+            "nav": 11254.4,
+            "navDate": "2025-09-19",
+            "productId": 75
+        },
+        {
+            "id": 41532,
+            "createdAt": 1758523710969,
+            "nav": 11246.28,
+            "navDate": "2025-09-22",
+            "productId": 75
+        },
+        {
+            "id": 41600,
+            "createdAt": 1758621515301,
+            "nav": 11140.13,
+            "navDate": "2025-09-23",
+            "productId": 75
+        },
+        {
+            "id": 41623,
+            "createdAt": 1758696041650,
+            "nav": 11139.09,
+            "navDate": "2025-09-24",
+            "productId": 75
+        },
+        {
+            "id": 41664,
+            "createdAt": 1758784634375,
+            "nav": 11203.06,
+            "navDate": "2025-09-25",
+            "productId": 75
+        },
+        {
+            "id": 41714,
+            "createdAt": 1758868818756,
+            "nav": 11286.41,
+            "navDate": "2025-09-26",
+            "productId": 75
+        },
+        {
+            "id": 41756,
+            "createdAt": 1759127795113,
+            "nav": 11223.73,
+            "navDate": "2025-09-29",
+            "productId": 75
+        },
+        {
+            "id": 41810,
+            "createdAt": 1759221216269,
+            "nav": 11216.71,
+            "navDate": "2025-09-30",
+            "productId": 75
+        },
+        {
+            "id": 41850,
+            "createdAt": 1759300784750,
+            "nav": 11111.81,
+            "navDate": "2025-10-01",
+            "productId": 75
+        },
+        {
+            "id": 41890,
+            "createdAt": 1759388865305,
+            "nav": 11107.91,
+            "navDate": "2025-10-02",
+            "productId": 75
+        },
+        {
+            "id": 41942,
+            "createdAt": 1759473168283,
+            "nav": 11065.98,
+            "navDate": "2025-10-03",
+            "productId": 75
+        },
+        {
+            "id": 41985,
+            "createdAt": 1759735767480,
+            "nav": 11034.93,
+            "navDate": "2025-10-06",
+            "productId": 75
+        },
+        {
+            "id": 42021,
+            "createdAt": 1759819653658,
+            "nav": 11259.39,
+            "navDate": "2025-10-07",
+            "productId": 75
+        },
+        {
+            "id": 42072,
+            "createdAt": 1759904889770,
+            "nav": 11197.05,
+            "navDate": "2025-10-08",
+            "productId": 75
+        },
+        {
+            "id": 42116,
+            "createdAt": 1759991395531,
+            "nav": 11266.1,
+            "navDate": "2025-10-09",
+            "productId": 75
+        },
+        {
+            "id": 42164,
+            "createdAt": 1760079631062,
+            "nav": 11383.71,
+            "navDate": "2025-10-10",
+            "productId": 75
+        },
+        {
+            "id": 42205,
+            "createdAt": 1760339374256,
+            "nav": 11644.21,
+            "navDate": "2025-10-13",
+            "productId": 75
+        },
+        {
+            "id": 42246,
+            "createdAt": 1760423017556,
+            "nav": 11753.26,
+            "navDate": "2025-10-14",
+            "productId": 75
+        },
+        {
+            "id": 42295,
+            "createdAt": 1760509455848,
+            "nav": 11671.79,
+            "navDate": "2025-10-15",
+            "productId": 75
+        },
+        {
+            "id": 42340,
+            "createdAt": 1760597706069,
+            "nav": 11641.5,
+            "navDate": "2025-10-16",
+            "productId": 75
+        },
+        {
+            "id": 42388,
+            "createdAt": 1760682462897,
+            "nav": 11761.25,
+            "navDate": "2025-10-17",
+            "productId": 75
+        },
+        {
+            "id": 42431,
+            "createdAt": 1760945044237,
+            "nav": 11578.03,
+            "navDate": "2025-10-20",
+            "productId": 75
+        },
+        {
+            "id": 42489,
+            "createdAt": 1761036194359,
+            "nav": 10926.07,
+            "navDate": "2025-10-21",
+            "productId": 75
+        },
+        {
+            "id": 42522,
+            "createdAt": 1761114598190,
+            "nav": 11111.36,
+            "navDate": "2025-10-22",
+            "productId": 75
+        },
+        {
+            "id": 42567,
+            "createdAt": 1761200605373,
+            "nav": 11182.86,
+            "navDate": "2025-10-23",
+            "productId": 75
+        },
+        {
+            "id": 42620,
+            "createdAt": 1761287712132,
+            "nav": 11236.41,
+            "navDate": "2025-10-24",
+            "productId": 75
+        },
+        {
+            "id": 47510,
+            "createdAt": 1761546500200,
+            "nav": 11267.79,
+            "navDate": "2025-10-27",
+            "productId": 75
+        },
+        {
+            "id": 47548,
+            "createdAt": 1761632807575,
+            "nav": 11167.81,
+            "navDate": "2025-10-28",
+            "productId": 75
+        },
+        {
+            "id": 47602,
+            "createdAt": 1761719304094,
+            "nav": 11314.07,
+            "navDate": "2025-10-29",
+            "productId": 75
+        },
+        {
+            "id": 47647,
+            "createdAt": 1761807530790,
+            "nav": 11456.82,
+            "navDate": "2025-10-30",
+            "productId": 75
+        },
+        {
+            "id": 47698,
+            "createdAt": 1761892355631,
+            "nav": 11488.93,
+            "navDate": "2025-10-31",
+            "productId": 75
+        },
+        {
+            "id": 47740,
+            "createdAt": 1762151964659,
+            "nav": 11351.81,
+            "navDate": "2025-11-03",
+            "productId": 75
+        },
+        {
+            "id": 47779,
+            "createdAt": 1762237574854,
+            "nav": 11333.4,
+            "navDate": "2025-11-04",
+            "productId": 75
+        },
+        {
+            "id": 47833,
+            "createdAt": 1762324988561,
+            "nav": 11477.78,
+            "navDate": "2025-11-05",
+            "productId": 75
+        },
+        {
+            "id": 47895,
+            "createdAt": 1762418139204,
+            "nav": 11523.82,
+            "navDate": "2025-11-06",
+            "productId": 75
+        },
+        {
+            "id": 47929,
+            "createdAt": 1762496617131,
+            "nav": 11411.22,
+            "navDate": "2025-11-07",
+            "productId": 75
+        },
+        {
+            "id": 47970,
+            "createdAt": 1762756413091,
+            "nav": 11209.46,
+            "navDate": "2025-11-10",
+            "productId": 75
+        },
+        {
+            "id": 48012,
+            "createdAt": 1762842831273,
+            "nav": 11193.42,
+            "navDate": "2025-11-11",
+            "productId": 75
+        },
+        {
+            "id": 48064,
+            "createdAt": 1762928501065,
+            "nav": 11232.75,
+            "navDate": "2025-11-12",
+            "productId": 75
+        },
+        {
+            "id": 48109,
+            "createdAt": 1763015565660,
+            "nav": 11420.48,
+            "navDate": "2025-11-13",
+            "productId": 75
+        },
+        {
+            "id": 48160,
+            "createdAt": 1763102747261,
+            "nav": 11464.3,
+            "navDate": "2025-11-14",
+            "productId": 75
+        },
+        {
+            "id": 48203,
+            "createdAt": 1763360789144,
+            "nav": 11570.78,
+            "navDate": "2025-11-17",
+            "productId": 75
+        },
+        {
+            "id": 48242,
+            "createdAt": 1763447792942,
+            "nav": 11750.6,
+            "navDate": "2025-11-18",
+            "productId": 75
+        },
+        {
+            "id": 48296,
+            "createdAt": 1763533566328,
+            "nav": 11713.68,
+            "navDate": "2025-11-19",
+            "productId": 75
+        }
+    ],
+    "extra": {
+        "clientCode": "web",
+        "clientVersion": "1763454561603",
+        "cmsVersion": "1596193132376"
+    }
+}
