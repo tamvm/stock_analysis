@@ -20,22 +20,22 @@ with tab1:
     with col1:
         st.subheader("Total Return")
         st.markdown("""
-        **Formula:** `(Final Price - Initial Price) / Initial Price × 100%`
+        **Formula:** (Final Price - Initial Price) / Initial Price × 100%
 
         **What it means:** The absolute percentage gain or loss over a period.
 
-        **Example:** If you invested $10,000 and it's now worth $12,000, your total return is 20%.
+        **Example:** If you invested \\$10,000 and it's now worth \\$12,000, your total return is 20%.
 
         **Use case:** Compare absolute performance between different time periods.
         """)
 
         st.subheader("CAGR (Compound Annual Growth Rate)")
         st.markdown("""
-        **Formula:** `((Final Value / Initial Value)^(1/Years)) - 1`
+        **Formula:** ((Final Value / Initial Value)^(1/Years)) - 1
 
         **What it means:** The annualized return that smooths out volatility.
 
-        **Example:** A fund growing from $10,000 to $14,641 over 4 years has a CAGR of 10%.
+        **Example:** A fund growing from \\$10,000 to \\$14,641 over 4 years has a CAGR of 10%.
 
         **Use case:** Compare funds with different time periods on an equal basis.
         """)
@@ -54,7 +54,7 @@ with tab1:
 
         st.subheader("Excess Return")
         st.markdown("""
-        **Formula:** `Fund Return - Benchmark Return`
+        **Formula:** Fund Return - Benchmark Return
 
         **What it means:** How much better (or worse) a fund performs vs. the market.
 
@@ -71,7 +71,7 @@ with tab2:
     with col1:
         st.subheader("Volatility (Standard Deviation)")
         st.markdown("""
-        **Formula:** `Standard deviation of daily returns × √252`
+        **Formula:** Standard deviation of daily returns × √252
 
         **What it means:** How much returns vary from the average (annualized).
 
@@ -85,11 +85,11 @@ with tab2:
 
         st.subheader("Maximum Drawdown")
         st.markdown("""
-        **Formula:** `(Trough Value - Peak Value) / Peak Value`
+        **Formula:** (Trough Value - Peak Value) / Peak Value
 
         **What it means:** The largest peak-to-trough decline during any period.
 
-        **Example:** If a fund drops from $12,000 to $9,000, max drawdown is -25%.
+        **Example:** If a fund drops from \\$12,000 to \\$9,000, max drawdown is -25%.
 
         **Use case:** Understand worst-case scenarios and your risk tolerance.
         """)
@@ -97,7 +97,7 @@ with tab2:
     with col2:
         st.subheader("Sharpe Ratio")
         st.markdown("""
-        **Formula:** `(Return - Risk-Free Rate) / Volatility`
+        **Formula:** (Return - Risk-Free Rate) / Volatility
 
         **What it means:** Risk-adjusted return. Higher is better.
 
@@ -111,7 +111,7 @@ with tab2:
 
         st.subheader("Sortino Ratio")
         st.markdown("""
-        **Formula:** `(Return - Risk-Free Rate) / Downside Deviation`
+        **Formula:** (Return - Risk-Free Rate) / Downside Deviation
 
         **What it means:** Like Sharpe ratio but only penalizes downside volatility.
 
@@ -170,7 +170,7 @@ with tab3:
 
         st.subheader("Beta (Market Sensitivity)")
         st.markdown("""
-        **Formula:** `Covariance(Fund, Market) / Variance(Market)`
+        **Formula:** Covariance(Fund, Market) / Variance(Market)
 
         **What it means:**
         - Beta = 1: Moves with market
@@ -188,7 +188,7 @@ with tab4:
     with col1:
         st.subheader("Cumulative Returns")
         st.markdown("""
-        **Formula:** `(Current Price / Starting Price - 1) × 100%`
+        **Formula:** (Current Price / Starting Price - 1) × 100%
 
         **What it shows:** Total growth from a common starting point (normalized to 100%).
 
@@ -201,7 +201,7 @@ with tab4:
         st.markdown("""
         **What it measures:** Time taken to recover from peak-to-trough declines.
 
-        **Formula:** `Days from trough to new high`
+        **Formula:** Days from trough to new high
 
         **Why it matters:** Shows resilience and ability to bounce back from losses.
 
@@ -223,7 +223,7 @@ with tab4:
 
         st.subheader("Win Rate")
         st.markdown("""
-        **Formula:** `Number of positive periods / Total periods`
+        **Formula:** Number of positive periods / Total periods
 
         **What it means:** Percentage of time periods with positive returns.
 

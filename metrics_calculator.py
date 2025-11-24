@@ -27,8 +27,11 @@ class MetricsCalculator:
         # Pivot to get assets as columns
         price_data = df.pivot(index='date', columns='asset_code', values='price')
 
-        # Calculate daily returns
-        returns_data = price_data.pct_change(fill_method=None).dropna()
+        # Calculate daily returns for each asset separately to handle different reporting schedules
+        returns_data = price_data.pct_change(fill_method=None)
+
+        # Only drop rows where ALL assets are NaN (keep rows with partial data)
+        returns_data = returns_data.dropna(how='all')
 
         return price_data, returns_data
 
@@ -116,13 +119,34 @@ class MetricsCalculator:
 
         return volatility * 100  # Convert to percentage
 
-    def calculate_sharpe_ratio(self, returns_data, risk_free_rate=0.02):
-        """Calculate Sharpe ratio (assuming 2% risk-free rate)"""
-        mean_returns = returns_data.mean() * 252  # Annualized
-        volatility = returns_data.std() * np.sqrt(252)  # Annualized
+    def calculate_sharpe_ratio(self, returns_data, risk_free_rate=0.02, min_periods=30):
+        """Calculate Sharpe ratio (assuming 2% risk-free rate)
 
-        sharpe_ratios = (mean_returns - risk_free_rate) / volatility
-        return sharpe_ratios
+        Args:
+            returns_data: DataFrame of returns
+            risk_free_rate: Annual risk-free rate (default 2%)
+            min_periods: Minimum number of data points required for reliable calculation
+        """
+        sharpe_ratios = {}
+
+        for asset in returns_data.columns:
+            asset_returns = returns_data[asset].dropna()
+
+            # Require minimum data points for reliable calculation
+            if len(asset_returns) < min_periods:
+                sharpe_ratios[asset] = np.nan
+                continue
+
+            # Calculate annualized returns and volatility for this asset
+            mean_return = asset_returns.mean() * 252  # Annualized (decimal form)
+            volatility = asset_returns.std() * np.sqrt(252)  # Annualized (decimal form)
+
+            if volatility == 0:
+                sharpe_ratios[asset] = np.nan
+            else:
+                sharpe_ratios[asset] = (mean_return - risk_free_rate) / volatility
+
+        return pd.Series(sharpe_ratios)
 
     def calculate_maximum_drawdown(self, price_data):
         """Calculate maximum drawdown for each asset"""
@@ -167,22 +191,22 @@ class MetricsCalculator:
         for period in periods:
             if period == 'Inception':
                 start_date = None
+                period_returns = returns_data
             else:
                 years = int(period[0])
                 start_date = current_date - timedelta(days=years*365)
+                period_returns = returns_data[returns_data.index >= start_date]
 
             period_summary = {
                 'total_return': self.calculate_total_return(price_data, start_date),
                 'annualized_return': self.calculate_annualized_return(price_data, start_date),
-                'volatility': self.calculate_volatility(
-                    returns_data[returns_data.index >= (start_date or returns_data.index.min())]
-                ).to_dict() if start_date else self.calculate_volatility(returns_data).to_dict()
+                'volatility': self.calculate_volatility(period_returns).to_dict(),
+                'sharpe_ratio': self.calculate_sharpe_ratio(period_returns).to_dict()
             }
             summary[period] = period_summary
 
-        # Add overall metrics
+        # Add overall metrics (inception period)
         summary['max_drawdown'] = self.calculate_maximum_drawdown(price_data)
-        summary['sharpe_ratio'] = self.calculate_sharpe_ratio(returns_data).to_dict()
         summary['correlation'] = self.calculate_correlation_matrix(returns_data)
 
         return summary

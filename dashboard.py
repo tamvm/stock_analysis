@@ -42,9 +42,102 @@ def init_processors():
 
 processor, calc = init_processors()
 
+# Initialize localStorage persistence functions
+def save_settings_to_localStorage():
+    """Save current settings to browser localStorage"""
+    settings = {
+        'selected_assets': st.session_state.get('selected_assets_ls', []),
+        'analysis_periods': st.session_state.get('analysis_periods_ls', ['1Y', '3Y', '5Y']),
+        'rolling_years': st.session_state.get('rolling_years_ls', 4),
+        'start_date': st.session_state.get('start_date_ls', ''),
+        'end_date': st.session_state.get('end_date_ls', '')
+    }
+
+    # Convert date objects to strings for JSON serialization
+    if isinstance(settings['start_date'], datetime):
+        settings['start_date'] = settings['start_date'].strftime('%d/%m/%Y')
+    if isinstance(settings['end_date'], datetime):
+        settings['end_date'] = settings['end_date'].strftime('%d/%m/%Y')
+
+    st.markdown(f"""
+    <script>
+    try {{
+        localStorage.setItem('investment_dashboard_settings', JSON.stringify({settings}));
+        console.log('Settings saved to localStorage:', {settings});
+    }} catch (e) {{
+        console.error('Error saving to localStorage:', e);
+    }}
+    </script>
+    """, unsafe_allow_html=True)
+
+def load_settings_from_localStorage():
+    """Load settings from browser localStorage"""
+    # Initialize with default values if localStorage is empty
+    default_settings = {
+        'selected_assets': [],
+        'analysis_periods': ['1Y', '3Y', '5Y'],
+        'rolling_years': 4,
+        'start_date': '',
+        'end_date': ''
+    }
+
+    # Try to get settings from localStorage via JavaScript and session state
+    if 'localStorage_loaded' not in st.session_state:
+        st.session_state.localStorage_loaded = False
+
+    return default_settings
+
+# Load settings on app start
+loaded_settings = load_settings_from_localStorage()
+
 # Title
 st.title("📈 Investment Analysis Portal")
 st.markdown("Professional investment analysis and comparison tool")
+
+# Add localStorage JavaScript handler
+st.markdown("""
+<script>
+// Load settings from localStorage on page load
+function loadSettingsFromLocalStorage() {
+    try {
+        const savedSettings = localStorage.getItem('investment_dashboard_settings');
+        if (savedSettings) {
+            const settings = JSON.parse(savedSettings);
+            console.log('Loaded settings from localStorage:', settings);
+
+            // Send settings to Streamlit via session state
+            window.parent.postMessage({
+                type: 'localStorage_settings',
+                data: settings
+            }, '*');
+
+            return settings;
+        }
+    } catch (e) {
+        console.error('Error loading from localStorage:', e);
+    }
+    return null;
+}
+
+// Save settings to localStorage
+function saveSettingsToLocalStorage(settings) {
+    try {
+        localStorage.setItem('investment_dashboard_settings', JSON.stringify(settings));
+        console.log('Settings saved to localStorage:', settings);
+    } catch (e) {
+        console.error('Error saving to localStorage:', e);
+    }
+}
+
+// Load settings when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadSettingsFromLocalStorage();
+});
+
+// Also try loading immediately
+loadSettingsFromLocalStorage();
+</script>
+""", unsafe_allow_html=True)
 
 # Sidebar for controls
 st.sidebar.header("Asset Selection & Settings")
@@ -59,62 +152,174 @@ except:
     st.error("Database not found. Please run data_processor.py first to load data.")
     st.stop()
 
+# Handle localStorage settings for asset selection
+if 'saved_selected_assets' not in st.session_state:
+    # Check if we have saved assets in localStorage that are valid
+    st.session_state.saved_selected_assets = loaded_settings.get('selected_assets', [])
+
+# Filter saved assets to only include valid ones
+valid_saved_assets = [asset for asset in st.session_state.saved_selected_assets if asset in all_assets]
+
 # Asset selection
 st.sidebar.subheader("Select Assets to Compare")
 selected_assets = st.sidebar.multiselect(
     "Choose funds and benchmarks:",
     options=all_assets,
-    default=fund_assets[:3] if len(fund_assets) >= 3 else fund_assets,
-    help="Select multiple assets to compare. You can toggle assets on/off."
+    default=valid_saved_assets if valid_saved_assets else (fund_assets[:3] if len(fund_assets) >= 3 else fund_assets),
+    help="Select multiple assets to compare. You can toggle assets on/off.",
+    key="selected_assets_multiselect"
 )
+
+# Update session state for localStorage saving
+st.session_state.selected_assets_ls = selected_assets
 
 if not selected_assets:
     st.warning("Please select at least one asset to analyze.")
     st.stop()
 
+# Asset detail navigation
+st.sidebar.subheader("Asset Detail Analysis")
+detail_asset = st.sidebar.selectbox(
+    "View detailed analysis:",
+    options=["Select asset..."] + all_assets,
+    help="Select an asset to view detailed information and analysis"
+)
+
+if detail_asset != "Select asset...":
+    if st.sidebar.button(f"📊 Analyze {detail_asset}", use_container_width=True):
+        # Set the selected asset in session state and navigate
+        st.session_state['selected_detail_asset'] = detail_asset
+        st.switch_page("pages/2_📊_Asset_Detail.py")
+
+# Advanced filtering navigation
+st.sidebar.subheader("Advanced Analysis")
+if st.sidebar.button("🔍 Advanced Filter & Analysis", use_container_width=True):
+    st.switch_page("pages/3_🔍_Advanced_Filter.py")
+
+# Handle localStorage settings for rolling years
+saved_rolling_years = loaded_settings.get('rolling_years', 4)
+rolling_years_options = [1, 3, 4, 5]
+
+# Find the index of saved value, default to 2 (4 years) if not found
+try:
+    rolling_years_index = rolling_years_options.index(saved_rolling_years)
+except ValueError:
+    rolling_years_index = 2  # Default to 4 years
+
 # Rolling period selector
 st.sidebar.subheader("Rolling CAGR Settings")
 rolling_years = st.sidebar.selectbox(
     "Rolling CAGR Period:",
-    options=[1, 3, 4, 5],
-    index=2,  # Default to 4 years
-    help="Select the rolling period for CAGR calculation"
+    options=rolling_years_options,
+    index=rolling_years_index,
+    help="Select the rolling period for CAGR calculation",
+    key="rolling_years_selectbox"
 )
+
+# Update session state for localStorage saving
+st.session_state.rolling_years_ls = rolling_years
+
+# Handle localStorage settings for analysis periods
+saved_analysis_periods = loaded_settings.get('analysis_periods', ['1Y', '3Y', '5Y'])
+analysis_options = ['1Y', '3Y', '5Y', 'Inception']
+
+# Filter saved periods to only include valid ones
+valid_saved_periods = [period for period in saved_analysis_periods if period in analysis_options]
 
 # Performance period selector
 st.sidebar.subheader("Performance Analysis")
 analysis_periods = st.sidebar.multiselect(
     "Analysis Periods:",
-    options=['1Y', '3Y', '5Y', 'Inception'],
-    default=['3Y', '5Y'],
-    help="Select time periods for performance comparison"
+    options=analysis_options,
+    default=valid_saved_periods if valid_saved_periods else ['1Y', '3Y', '5Y'],
+    help="Select time periods for performance comparison",
+    key="analysis_periods_multiselect"
 )
+
+# Update session state for localStorage saving
+st.session_state.analysis_periods_ls = analysis_periods
 
 # Date range selector
 st.sidebar.subheader("Date Range (Optional)")
 
-# Add button to set to maximum inception
-if st.sidebar.button("📅 Use Maximum Inception Range", help="Set date range from earliest fund inception to latest data"):
+# Add buttons to set inception ranges
+col1, col2 = st.sidebar.columns(2)
+
+with col1:
+    if st.button("📅 Max Inception", help="Set date range from earliest fund inception to latest data"):
+        try:
+            # Get date range directly from price data for selected assets
+            price_range_data = processor.get_price_data(selected_assets)
+
+            if not price_range_data.empty:
+                earliest_date = price_range_data['date'].min().date()
+                latest_date = price_range_data['date'].max().date()
+
+                # Update widget state directly
+                st.session_state.start_date = earliest_date
+                st.session_state.end_date = latest_date
+                st.rerun()
+        except Exception as e:
+            st.sidebar.error(f"Error setting max inception range: {e}")
+
+with col2:
+    if st.button("📅 Min Inception", help="Set date range from latest fund inception to latest data"):
+        try:
+            # Get date range directly from price data for selected assets
+            price_range_data = processor.get_price_data(selected_assets)
+
+            if not price_range_data.empty:
+                # Group by asset_code and get the first date for each asset
+                asset_start_dates = price_range_data.groupby('asset_code')['date'].min()
+
+                # Find the latest inception date (minimum common period)
+                latest_inception_date = asset_start_dates.max().date()
+                latest_date = price_range_data['date'].max().date()
+
+                # Update widget state directly
+                st.session_state.start_date = latest_inception_date
+                st.session_state.end_date = latest_date
+                st.rerun()
+        except Exception as e:
+            st.sidebar.error(f"Error setting min inception range: {e}")
+
+# Handle localStorage settings for date range
+saved_start_date = loaded_settings.get('start_date', '')
+saved_end_date = loaded_settings.get('end_date', '')
+
+# Convert saved date strings back to date objects if they exist and are valid
+start_date_value = None
+end_date_value = None
+
+if saved_start_date:
     try:
-        # Get inception dates for selected assets
-        assets_df = processor.get_asset_list()
-        selected_assets_df = assets_df[assets_df['asset_code'].isin(selected_assets)]
+        start_date_value = datetime.strptime(saved_start_date, '%d/%m/%Y').date()
+    except (ValueError, TypeError):
+        start_date_value = None
 
-        if not selected_assets_df.empty:
-            earliest_inception = pd.to_datetime(selected_assets_df['inception_date']).min().date()
-            latest_date = pd.to_datetime(selected_assets_df['last_update']).max().date()
-
-            st.session_state.start_date_input = earliest_inception
-            st.session_state.end_date_input = latest_date
-            st.rerun()
-    except Exception as e:
-        st.sidebar.error(f"Error setting inception range: {e}")
+if saved_end_date:
+    try:
+        end_date_value = datetime.strptime(saved_end_date, '%d/%m/%Y').date()
+    except (ValueError, TypeError):
+        end_date_value = None
 
 col1, col2 = st.sidebar.columns(2)
 with col1:
-    start_date = st.date_input("Start Date", value=st.session_state.get('start_date_input', None))
+    start_date = st.date_input(
+        "Start Date",
+        value=start_date_value,
+        key="start_date"
+    )
 with col2:
-    end_date = st.date_input("End Date", value=st.session_state.get('end_date_input', None))
+    end_date = st.date_input(
+        "End Date",
+        value=end_date_value,
+        key="end_date"
+    )
+
+# Update session state for localStorage saving
+st.session_state.start_date_ls = start_date
+st.session_state.end_date_ls = end_date
 
 # Load data for selected assets
 @st.cache_data
@@ -153,28 +358,27 @@ try:
         for period in (analysis_periods if analysis_periods else ['3Y']):
             if period in summary:
                 ann_ret = summary[period]['annualized_return'].get(asset, 'N/A')
-                vol = summary[period]['volatility'].get(asset, 'N/A')
 
-                if isinstance(ann_ret, (int, float)):
+                if isinstance(ann_ret, (int, float, np.floating)):
                     row[f'{period} Return'] = f"{ann_ret:.1f}%"
                 else:
                     row[f'{period} Return'] = 'N/A'
 
-                if isinstance(vol, (int, float)):
-                    row[f'{period} Vol'] = f"{vol:.1f}%"
-                else:
-                    row[f'{period} Vol'] = 'N/A'
-
         # Add overall metrics
         max_dd = summary['max_drawdown'].get(asset, 'N/A')
-        sharpe = summary['sharpe_ratio'].get(asset, 'N/A')
 
-        if isinstance(max_dd, (int, float)):
+        # Use Sharpe ratio from the first analysis period
+        first_period = analysis_periods[0] if analysis_periods else '3Y'
+        sharpe = 'N/A'
+        if first_period in summary and 'sharpe_ratio' in summary[first_period]:
+            sharpe = summary[first_period]['sharpe_ratio'].get(asset, 'N/A')
+
+        if isinstance(max_dd, (int, float, np.floating)):
             row['Max DD'] = f"{max_dd:.1f}%"
         else:
             row['Max DD'] = 'N/A'
 
-        if isinstance(sharpe, (int, float)):
+        if isinstance(sharpe, (int, float, np.floating)):
             row['Sharpe'] = f"{sharpe:.2f}"
         else:
             row['Sharpe'] = 'N/A'
@@ -183,6 +387,17 @@ try:
 
     summary_df = pd.DataFrame(summary_data)
     st.dataframe(summary_df, use_container_width=True)
+
+    # Quick links to asset details
+    st.markdown("**🔍 Quick Asset Analysis:**")
+    cols = st.columns(min(len(selected_assets), 5))  # Max 5 columns
+
+    for i, asset in enumerate(selected_assets):
+        col_idx = i % 5
+        with cols[col_idx]:
+            if st.button(f"📊 {asset}", key=f"detail_btn_{asset}", help=f"View detailed analysis for {asset}"):
+                st.session_state['selected_detail_asset'] = asset
+                st.switch_page("pages/2_📊_Asset_Detail.py")
 
 except Exception as e:
     st.error(f"Error calculating summary: {e}")
@@ -205,7 +420,7 @@ try:
                     start_date = date - timedelta(days=rolling_years*365)
                     hover_text.append(
                         f"<b>{asset}</b><br>" +
-                        f"From: {start_date.strftime('%Y-%m-%d')} To: {date.strftime('%Y-%m-%d')}<br>" +
+                        f"From: {start_date.strftime('%d/%m/%Y')} To: {date.strftime('%d/%m/%Y')}<br>" +
                         f"CAGR: {cagr_value:.1f}%"
                     )
 
@@ -237,50 +452,284 @@ try:
 except Exception as e:
     st.error(f"Error creating rolling CAGR chart: {e}")
 
+# Rolling CAGR Statistics (immediately after the chart)
+try:
+    if not rolling_cagr.empty:
+        st.subheader(f"📊 Rolling {rolling_years}-Year CAGR Statistics")
+
+        # Create three columns for the metrics
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.markdown("**🏆 Best/Worst Rate**")
+            best_worst_stats = []
+
+            # For each time period, find which asset had the best and worst CAGR
+            rolling_cagr_clean = rolling_cagr.dropna(how='all')
+
+            for asset in rolling_cagr.columns:
+                best_count = 0
+                worst_count = 0
+                total_comparisons = 0
+
+                # Go through each time period
+                for date in rolling_cagr_clean.index:
+                    period_data = rolling_cagr_clean.loc[date].dropna()
+
+                    # Only count periods where this asset has data and there are at least 2 assets to compare
+                    if asset in period_data.index and len(period_data) >= 2:
+                        total_comparisons += 1
+                        asset_value = period_data[asset]
+
+                        # Check if this asset has the highest CAGR in this period
+                        if asset_value == period_data.max():
+                            # Handle ties: if multiple assets have the same max value, each gets credit
+                            max_count = (period_data == period_data.max()).sum()
+                            best_count += 1 / max_count
+
+                        # Check if this asset has the lowest CAGR in this period
+                        if asset_value == period_data.min():
+                            # Handle ties: if multiple assets have the same min value, each gets blame
+                            min_count = (period_data == period_data.min()).sum()
+                            worst_count += 1 / min_count
+
+                if total_comparisons > 0:
+                    best_rate = (best_count / total_comparisons) * 100
+                    worst_rate = (worst_count / total_comparisons) * 100
+
+                    best_worst_stats.append({
+                        'Asset': asset,
+                        'Best Rate': f"{best_rate:.1f}%",
+                        'Worst Rate': f"{worst_rate:.1f}%",
+                        'Periods': total_comparisons
+                    })
+
+            if best_worst_stats:
+                best_worst_df = pd.DataFrame(best_worst_stats)
+                st.dataframe(best_worst_df, use_container_width=True, hide_index=True)
+
+        with col2:
+            st.markdown("**📈 Rolling CAGR Summary**")
+            total_stats = []
+            for asset in rolling_cagr.columns:
+                data = rolling_cagr[asset].dropna()
+                if len(data) > 0:
+                    min_cagr = data.min()
+                    max_cagr = data.max()
+                    total_cagr = data.sum()  # Sum of all rolling CAGR periods
+                    range_cagr = max_cagr - min_cagr  # Difference between max and min
+                    total_stats.append({
+                        'Asset': asset,
+                        'Min CAGR': f"{min_cagr:.1f}%",
+                        'Max CAGR': f"{max_cagr:.1f}%",
+                        'Total': f"{total_cagr:.1f}%",
+                        'Range': f"{range_cagr:.1f}%"
+                    })
+
+            if total_stats:
+                total_df = pd.DataFrame(total_stats)
+                st.dataframe(total_df, use_container_width=True, hide_index=True)
+
+        with col3:
+            st.markdown("**📊 Central Tendency**")
+            central_stats = []
+            for asset in rolling_cagr.columns:
+                data = rolling_cagr[asset].dropna()
+                if len(data) > 0:
+                    median_cagr = data.median()
+                    mean_cagr = data.mean()
+                    central_stats.append({
+                        'Asset': asset,
+                        'Median CAGR': f"{median_cagr:.1f}%",
+                        'Average CAGR': f"{mean_cagr:.1f}%",
+                        'Std Dev': f"{data.std():.1f}%"
+                    })
+
+            if central_stats:
+                central_df = pd.DataFrame(central_stats)
+                st.dataframe(central_df, use_container_width=True, hide_index=True)
+
+except Exception as e:
+    st.error(f"Error calculating rolling CAGR statistics: {e}")
+
 # Additional charts row
 st.subheader("📊 Additional Analysis")
 
-tab1, tab2, tab3, tab4 = st.tabs(["Cumulative Returns", "Risk-Return", "Correlation", "Drawdown"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Cumulative Returns", "Price Changes", "Risk-Return", "Correlation", "Drawdown"])
 
 with tab1:
     # Cumulative Returns Chart
+    st.markdown("**📈 Chart Explanation**: This chart shows how $100 invested in each asset would have grown over time. All assets start at 100% and the lines show relative performance.")
+
     try:
-        # Normalize to 100% start
-        cumulative_returns = (price_data / price_data.iloc[0] * 100).dropna()
+        # Check if we have price data
+        if price_data.empty:
+            st.warning("No price data available for selected assets.")
+        else:
+            # Normalize each asset to its own first valid value (100% start)
+            cumulative_returns = pd.DataFrame(index=price_data.index)
 
-        fig_cum = go.Figure()
+            for asset in price_data.columns:
+                asset_prices = price_data[asset].dropna()
+                if not asset_prices.empty:
+                    # Normalize to 100% from the first valid price of this asset
+                    normalized_series = (asset_prices / asset_prices.iloc[0] * 100)
+                    cumulative_returns[asset] = normalized_series
 
-        for i, asset in enumerate(cumulative_returns.columns):
-            data = cumulative_returns[asset].dropna()
-            if len(data) > 0:
-                fig_cum.add_trace(go.Scatter(
-                    x=data.index,
-                    y=data.values,
-                    mode='lines',
-                    name=asset,
-                    line=dict(color=CHART_COLORS[i % len(CHART_COLORS)], width=3),
-                    hovertemplate=f'<b>{asset}</b><br>' +
-                                'Date: %{x}<br>' +
-                                'Value: %{y:.1f}<br>' +
-                                '<extra></extra>'
-                ))
+            if cumulative_returns.empty:
+                st.warning("No cumulative returns data available after processing.")
+            else:
+                fig_cum = go.Figure()
+                traces_added = 0
 
-        fig_cum.update_layout(
-            title="Cumulative Returns (Normalized to 100%)",
-            xaxis_title="Date",
-            yaxis_title="Value",
-            hovermode="x unified",
-            height=400
-        )
+                for i, asset in enumerate(cumulative_returns.columns):
+                    data = cumulative_returns[asset].dropna()
+                    if len(data) > 0:
+                        fig_cum.add_trace(go.Scatter(
+                            x=data.index,
+                            y=data.values,
+                            mode='lines',
+                            name=asset,
+                            line=dict(color=CHART_COLORS[i % len(CHART_COLORS)], width=3),
+                            hovertemplate=f'<b>{asset}</b><br>' +
+                                        'Date: %{x}<br>' +
+                                        'Value: %{y:.1f}%<br>' +
+                                        '<extra></extra>'
+                        ))
+                        traces_added += 1
 
-        fig_cum.add_hline(y=100, line_dash="dash", line_color="gray", opacity=0.5)
+                if traces_added > 0:
+                    fig_cum.update_layout(
+                        title="Cumulative Returns (Normalized to 100%)",
+                        xaxis_title="Date",
+                        yaxis_title="Cumulative Value (%)",
+                        hovermode="x unified",
+                        height=400
+                    )
 
-        st.plotly_chart(fig_cum, use_container_width=True)
+                    fig_cum.add_hline(y=100, line_dash="dash", line_color="gray", opacity=0.5)
+
+                    st.plotly_chart(fig_cum, use_container_width=True)
+                else:
+                    st.warning("No valid data traces could be created for the cumulative returns chart.")
+
 
     except Exception as e:
         st.error(f"Error creating cumulative returns chart: {e}")
 
 with tab2:
+    # Price Changes Chart
+    try:
+        if price_data.empty:
+            st.warning("No price data available for selected assets.")
+        else:
+            # Create subplots - one for absolute prices, one for percentage changes
+            fig_price_changes = make_subplots(
+                rows=2, cols=1,
+                subplot_titles=("Absolute Prices", "Daily Percentage Changes"),
+                vertical_spacing=0.08,
+                shared_xaxes=True
+            )
+
+            # Top subplot: Absolute prices
+            for i, asset in enumerate(price_data.columns):
+                data = price_data[asset].dropna()
+                if len(data) > 0:
+                    fig_price_changes.add_trace(
+                        go.Scatter(
+                            x=data.index,
+                            y=data.values,
+                            mode='lines',
+                            name=f"{asset} (Price)",
+                            line=dict(color=CHART_COLORS[i % len(CHART_COLORS)], width=2),
+                            hovertemplate=f'<b>{asset}</b><br>' +
+                                        'Date: %{x}<br>' +
+                                        'Price: %{y:.2f}<br>' +
+                                        '<extra></extra>',
+                            showlegend=False
+                        ),
+                        row=1, col=1
+                    )
+
+            # Bottom subplot: Daily percentage changes
+            for i, asset in enumerate(price_data.columns):
+                data = price_data[asset].dropna()
+                if len(data) > 1:
+                    # Calculate daily percentage changes
+                    pct_changes = data.pct_change() * 100
+                    pct_changes = pct_changes.dropna()
+
+                    if len(pct_changes) > 0:
+                        fig_price_changes.add_trace(
+                            go.Scatter(
+                                x=pct_changes.index,
+                                y=pct_changes.values,
+                                mode='lines',
+                                name=asset,
+                                line=dict(color=CHART_COLORS[i % len(CHART_COLORS)], width=2),
+                                hovertemplate=f'<b>{asset}</b><br>' +
+                                            'Date: %{x}<br>' +
+                                            'Daily Change: %{y:.2f}%<br>' +
+                                            '<extra></extra>'
+                            ),
+                            row=2, col=1
+                        )
+
+            # Update layout
+            fig_price_changes.update_layout(
+                title="Price Changes Analysis",
+                height=700,
+                hovermode="x unified",
+                legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5)
+            )
+
+            # Update y-axes labels
+            fig_price_changes.update_yaxes(title_text="Price", row=1, col=1)
+            fig_price_changes.update_yaxes(title_text="Daily Change (%)", row=2, col=1)
+            fig_price_changes.update_xaxes(title_text="Date", row=2, col=1)
+
+            # Add horizontal line at 0% for percentage changes
+            fig_price_changes.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5, row=2, col=1)
+
+            st.plotly_chart(fig_price_changes, use_container_width=True)
+
+            # Add summary statistics table
+            st.subheader("Price Change Statistics")
+
+            price_stats = []
+            for asset in price_data.columns:
+                data = price_data[asset].dropna()
+                if len(data) > 1:
+                    # Calculate statistics
+                    start_price = data.iloc[0]
+                    end_price = data.iloc[-1]
+                    total_change = ((end_price - start_price) / start_price) * 100
+
+                    daily_changes = data.pct_change().dropna() * 100
+                    avg_daily_change = daily_changes.mean()
+                    volatility = daily_changes.std()
+                    max_daily_gain = daily_changes.max()
+                    max_daily_loss = daily_changes.min()
+
+                    price_stats.append({
+                        'Asset': asset,
+                        'Start Price': f"{start_price:.2f}",
+                        'End Price': f"{end_price:.2f}",
+                        'Total Change': f"{total_change:.1f}%",
+                        'Avg Daily Change': f"{avg_daily_change:.2f}%",
+                        'Daily Volatility': f"{volatility:.2f}%",
+                        'Max Daily Gain': f"{max_daily_gain:.2f}%",
+                        'Max Daily Loss': f"{max_daily_loss:.2f}%"
+                    })
+
+            if price_stats:
+                stats_df = pd.DataFrame(price_stats)
+                st.dataframe(stats_df, use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Error creating price changes chart: {e}")
+
+with tab3:
     # Risk-Return Scatter Plot
     try:
         if analysis_periods:
@@ -321,7 +770,7 @@ with tab2:
     except Exception as e:
         st.error(f"Error creating risk-return chart: {e}")
 
-with tab3:
+with tab4:
     # Correlation Heatmap
     try:
         if 'correlation' in summary and not summary['correlation'].empty:
@@ -348,7 +797,7 @@ with tab3:
     except Exception as e:
         st.error(f"Error creating correlation chart: {e}")
 
-with tab4:
+with tab5:
     # Drawdown Analysis
     try:
         drawdown_data = {}
@@ -397,6 +846,5 @@ with tab4:
     except Exception as e:
         st.error(f"Error creating drawdown chart: {e}")
 
-# Footer
-st.markdown("---")
-st.markdown("**Investment Analysis Portal** | Data updated weekly | For educational purposes only")
+# Save current settings to localStorage
+save_settings_to_localStorage()

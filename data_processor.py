@@ -36,7 +36,12 @@ class DataProcessor:
                 asset_name TEXT,
                 asset_type TEXT,
                 inception_date DATE,
-                last_update DATE
+                last_update DATE,
+                description TEXT,
+                top_holdings TEXT,
+                investment_strategy TEXT,
+                sector_allocation TEXT,
+                fund_size TEXT
             )
         ''')
 
@@ -176,6 +181,55 @@ class DataProcessor:
         conn.close()
 
         return df
+
+    def update_asset_info(self, asset_code, description=None, top_holdings=None,
+                         investment_strategy=None, sector_allocation=None, fund_size=None):
+        """Update asset information"""
+        conn = sqlite3.connect(self.db_path)
+
+        # Build the update query dynamically based on provided parameters
+        update_fields = []
+        params = []
+
+        if description is not None:
+            update_fields.append("description = ?")
+            params.append(description)
+        if top_holdings is not None:
+            update_fields.append("top_holdings = ?")
+            params.append(top_holdings)
+        if investment_strategy is not None:
+            update_fields.append("investment_strategy = ?")
+            params.append(investment_strategy)
+        if sector_allocation is not None:
+            update_fields.append("sector_allocation = ?")
+            params.append(sector_allocation)
+        if fund_size is not None:
+            update_fields.append("fund_size = ?")
+            params.append(fund_size)
+
+        if update_fields:
+            query = f"UPDATE assets SET {', '.join(update_fields)} WHERE asset_code = ?"
+            params.append(asset_code)
+            conn.execute(query, params)
+            conn.commit()
+
+        conn.close()
+
+    def get_asset_details(self, asset_code):
+        """Get detailed information for a specific asset"""
+        conn = sqlite3.connect(self.db_path)
+        query = """
+            SELECT asset_code, asset_name, asset_type, inception_date, description,
+                   top_holdings, investment_strategy, sector_allocation, fund_size
+            FROM assets
+            WHERE asset_code = ?
+        """
+        df = pd.read_sql_query(query, conn, params=[asset_code])
+        conn.close()
+
+        if len(df) > 0:
+            return df.iloc[0].to_dict()
+        return None
 
     def get_price_data(self, asset_codes, start_date=None, end_date=None):
         """Get price data for specified assets"""
