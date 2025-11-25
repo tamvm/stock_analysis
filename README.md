@@ -39,6 +39,35 @@ pip install -r requirements.txt
 python setup.py
 ```
 
+### 2.1 Import Individual Fund/Stock Data
+Use the dedicated import scripts to add new data:
+
+#### Fund Data (JSON format)
+```bash
+# Import fund data
+python import_fund_data.py data/vesaf-20251120.txt VESAF
+python import_fund_data.py data/vemeef-20251120.txt VEMEEF
+
+# List all assets in database
+python import_fund_data.py --list-assets
+
+# View help
+python import_fund_data.py --help
+```
+
+#### Stock/ETF Data (CSV or JSON format)
+```bash
+# Import stock/ETF data with custom name
+python import_stock_data.py data/vti-112025.csv "Vanguard Total Stock Market ETF"
+python import_stock_data.py data/qqq-112025.csv "Invesco QQQ ETF"
+
+# Import using filename as asset code
+python import_stock_data.py data/spy-112025.csv
+
+# Import JSON fund data (alternative to import_fund_data.py)
+python import_stock_data.py data/dcbf-20251120.txt "Dragon Capital Balanced Fund"
+```
+
 ### 3. Launch Dashboard
 ```bash
 streamlit run dashboard.py
@@ -142,6 +171,8 @@ stock_analysis/
 ├── data_processor.py              # Data loading and processing
 ├── metrics_calculator.py          # Financial calculations
 ├── setup.py                      # Initial data processing
+├── import_fund_data.py            # Individual fund data import script
+├── import_stock_data.py           # Stock/ETF data import script (CSV/JSON)
 ├── requirements.txt               # Python dependencies
 └── README.md                      # This file
 ```
@@ -160,9 +191,18 @@ stock_analysis/
 
 ## Data Update Process
 
-### Weekly Updates (Future)
+### Adding New Assets
+1. Add new data file to `/data` folder
+   - **Funds**: JSON format (use `import_fund_data.py`)
+   - **Stocks/ETFs**: CSV format (use `import_stock_data.py`)
+2. Import using appropriate script:
+   - `python import_fund_data.py data/newfund-20251120.txt NEWFUND`
+   - `python import_stock_data.py data/newstock-112025.csv "New Stock Name"`
+3. Verify with: `python import_fund_data.py --list-assets`
+
+### Bulk Updates (Future)
 1. Add new data files to `/data` folder
-2. Run `python setup.py` to reprocess
+2. Run `python setup.py` to reprocess all
 3. Database automatically updates with new records
 
 ### Current Status
