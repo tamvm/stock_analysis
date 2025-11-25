@@ -44,12 +44,15 @@ st.markdown("Filter assets by date range and compare multiple funds/stocks with 
 try:
     assets_df = processor.get_asset_list()
     fund_assets = sorted(assets_df[assets_df['asset_type'] == 'fund']['asset_code'].tolist())
+    etf_assets = sorted(assets_df[assets_df['asset_type'] == 'etf']['asset_code'].tolist())
     benchmark_assets = sorted(assets_df[assets_df['asset_type'] == 'benchmark']['asset_code'].tolist())
 
     # Create organized list with clear labels
     organized_options = []
     if fund_assets:
         organized_options.extend([f"📈 {asset} (Fund)" for asset in fund_assets])
+    if etf_assets:
+        organized_options.extend([f"🏛️ {asset} (ETF)" for asset in etf_assets])
     if benchmark_assets:
         organized_options.extend([f"📊 {asset} (Benchmark)" for asset in benchmark_assets])
 
@@ -58,11 +61,14 @@ try:
     for asset in fund_assets:
         display_name = f"📈 {asset} (Fund)"
         display_to_asset[display_name] = asset
+    for asset in etf_assets:
+        display_name = f"🏛️ {asset} (ETF)"
+        display_to_asset[display_name] = asset
     for asset in benchmark_assets:
         display_name = f"📊 {asset} (Benchmark)"
         display_to_asset[display_name] = asset
 
-    all_assets = fund_assets + benchmark_assets
+    all_assets = fund_assets + etf_assets + benchmark_assets
 except Exception as e:
     st.error("Database not found. Please run data_processor.py first to load data.")
     st.stop()
@@ -80,7 +86,7 @@ selected_display_assets = st.sidebar.multiselect(
     "📋 **Available Assets:**",
     options=organized_options,
     default=organized_options[:5] if len(organized_options) >= 5 else organized_options,
-    help="📈 Funds | 📊 Benchmark References"
+    help="📈 Funds | 🏛️ ETFs | 📊 Benchmarks"
 )
 
 # Convert back to asset codes for processing
@@ -221,9 +227,10 @@ with col4:
 
 # Asset breakdown
 fund_count = len([asset for asset in selected_assets if asset in fund_assets])
+etf_count = len([asset for asset in selected_assets if asset in etf_assets])
 benchmark_count = len([asset for asset in selected_assets if asset in benchmark_assets])
 
-st.markdown(f"**Assets:** {fund_count} Funds, {benchmark_count} Benchmarks")
+st.markdown(f"**Assets:** {fund_count} Funds, {etf_count} ETFs, {benchmark_count} Benchmarks")
 st.markdown(f"**Selected Assets:** {', '.join(selected_assets)}")
 
 # Matched Data Rows
@@ -241,7 +248,7 @@ try:
 
         # Add asset type column
         display_data['asset_type'] = display_data['asset_code'].apply(
-            lambda x: 'Fund' if x in fund_assets else 'Benchmark'
+            lambda x: 'Fund' if x in fund_assets else ('ETF' if x in etf_assets else 'Benchmark')
         )
 
         # Reorder columns for better display
@@ -251,20 +258,28 @@ try:
         # Sort by asset and date
         display_data = display_data.sort_values(['Asset Code', 'Date'])
 
+        # Limit to top 2000 rows for display
+        total_rows = len(display_data)
+        display_limited = display_data.head(2000)
+
         # Display metrics about the filtered data
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("Total Rows", len(display_data))
+            st.metric("Total Rows", f"{total_rows:,}")
         with col2:
-            st.metric("Unique Assets", display_data['Asset Code'].nunique())
+            st.metric("Displayed Rows", f"{len(display_limited):,}")
         with col3:
-            st.metric("Date Range", f"{(pd.to_datetime(end_date) - pd.to_datetime(start_date)).days} days")
+            st.metric("Unique Assets", display_data['Asset Code'].nunique())
         with col4:
-            st.metric("Avg Records/Asset", f"{len(display_data) / len(selected_assets):.1f}")
+            st.metric("Date Range", f"{(pd.to_datetime(end_date) - pd.to_datetime(start_date)).days} days")
 
-        # Display the data table
+        # Show warning if data is truncated
+        if total_rows > 2000:
+            st.warning(f"⚠️ Displaying top 2000 rows out of {total_rows:,} total rows. Download the full dataset using the button below.")
+
+        # Display the data table (limited to 2000 rows)
         st.dataframe(
-            display_data,
+            display_limited,
             use_container_width=True,
             hide_index=True,
             height=500
@@ -460,7 +475,7 @@ with tab3:
                     vol = summary[period]['volatility'].get(asset)
 
                     if isinstance(ret, (int, float)) and isinstance(vol, (int, float)):
-                        asset_type = 'Fund' if asset in fund_assets else 'Benchmark'
+                        asset_type = 'Fund' if asset in fund_assets else ('ETF' if asset in etf_assets else 'Benchmark')
                         risk_return_data.append({
                             'Asset': asset,
                             'Return': ret,
@@ -499,7 +514,7 @@ with tab3:
 
                         risk_metrics.append({
                             'Asset': asset,
-                            'Type': 'Fund' if asset in fund_assets else 'Benchmark',
+                            'Type': 'Fund' if asset in fund_assets else ('ETF' if asset in etf_assets else 'Benchmark'),
                             'Volatility': f"{vol:.1f}%" if isinstance(vol, (int, float)) else 'N/A',
                             'Max Drawdown': f"{max_dd:.1f}%" if isinstance(max_dd, (int, float)) else 'N/A',
                             'Sharpe Ratio': f"{sharpe:.2f}" if isinstance(sharpe, (int, float)) else 'N/A'
@@ -617,7 +632,7 @@ with tab5:
 
                     detailed_stats.append({
                         'Asset': asset,
-                        'Type': 'Fund' if asset in fund_assets else 'Benchmark',
+                        'Type': 'Fund' if asset in fund_assets else ('ETF' if asset in etf_assets else 'Benchmark'),
                         'Start Price': f"{start_price:.2f}",
                         'End Price': f"{end_price:.2f}",
                         'Total Return': f"{total_return:.1f}%",

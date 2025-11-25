@@ -146,8 +146,9 @@ st.sidebar.header("Asset Selection & Settings")
 try:
     assets_df = processor.get_asset_list()
     fund_assets = assets_df[assets_df['asset_type'] == 'fund']['asset_code'].tolist()
+    etf_assets = assets_df[assets_df['asset_type'] == 'etf']['asset_code'].tolist()
     benchmark_assets = assets_df[assets_df['asset_type'] == 'benchmark']['asset_code'].tolist()
-    all_assets = fund_assets + benchmark_assets
+    all_assets = fund_assets + etf_assets + benchmark_assets
 except:
     st.error("Database not found. Please run data_processor.py first to load data.")
     st.stop()
@@ -163,10 +164,10 @@ valid_saved_assets = [asset for asset in st.session_state.saved_selected_assets 
 # Asset selection
 st.sidebar.subheader("Select Assets to Compare")
 selected_assets = st.sidebar.multiselect(
-    "Choose funds and benchmarks:",
+    "Choose Assets:",
     options=all_assets,
     default=valid_saved_assets if valid_saved_assets else (fund_assets[:3] if len(fund_assets) >= 3 else fund_assets),
-    help="Select multiple assets to compare. You can toggle assets on/off.",
+    help="Select multiple assets to compare. Includes funds, ETFs, and benchmarks.",
     key="selected_assets_multiselect"
 )
 
@@ -198,7 +199,7 @@ if st.sidebar.button("🔍 Advanced Filter & Analysis", use_container_width=True
 
 # Handle localStorage settings for rolling years
 saved_rolling_years = loaded_settings.get('rolling_years', 4)
-rolling_years_options = [1, 3, 4, 5]
+rolling_years_options = [1, 2, 3, 4, 5]
 
 # Find the index of saved value, default to 2 (4 years) if not found
 try:

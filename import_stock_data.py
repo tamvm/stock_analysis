@@ -8,10 +8,10 @@ from pathlib import Path
 
 def import_stock_data(file_path, db_path="db/investment_data.db", asset_name=None):
     """
-    Import stock/fund data from JSON file into price_data and assets tables
+    Import stock/fund data from CSV or JSON file into price_data and assets tables
 
     Args:
-        file_path: Path to the JSON data file
+        file_path: Path to the CSV or JSON data file
         db_path: Path to the SQLite database (default: "db/investment_data.db")
         asset_name: Optional custom asset name, if not provided will use asset_code
 
@@ -25,46 +25,81 @@ def import_stock_data(file_path, db_path="db/investment_data.db", asset_name=Non
     filename = Path(file_path).stem
     asset_code = filename.split("-")[0].upper()
 
-    # Read the JSON data
+    # Determine file format and read data
     print(f"Loading data from {file_path}...")
     print(f"Asset code detected: {asset_code}")
 
+    file_extension = Path(file_path).suffix.lower()
+
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        if file_extension == '.csv':
+            # Read CSV file
+            df = pd.read_csv(file_path)
+            print(f"Found {len(df)} records in CSV file")
+
+            # Check required columns
+            if 'Date' not in df.columns or 'Close/Last' not in df.columns:
+                print("Error: CSV file must have 'Date' and 'Close/Last' columns")
+                return False
+
+            # Process CSV data
+            df_records = []
+            for _, row in df.iterrows():
+                try:
+                    # Parse date and price
+                    date = pd.to_datetime(row['Date'])
+                    price_str = str(row['Close/Last']).replace('$', '').replace(',', '')
+                    price = float(price_str)
+
+                    df_records.append({
+                        'date': date,
+                        'price': price,
+                        'product_id': None
+                    })
+                except (ValueError, TypeError) as e:
+                    print(f"Skipping invalid record: {row['Date']} - {e}")
+                    continue
+
+            product_id = None
+
+        else:
+            # Read JSON file (original logic)
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            # Extract NAV data
+            if 'data' not in data or not data['data']:
+                print("No data found in JSON file")
+                return False
+
+            print(f"Found {len(data['data'])} records in file")
+
+            # Process the data
+            df_records = []
+            product_id = None
+
+            for record in data['data']:
+                if 'nav' in record and 'navDate' in record:
+                    df_records.append({
+                        'date': pd.to_datetime(record['navDate']),
+                        'price': float(record['nav']),
+                        'product_id': record.get('productId')
+                    })
+
+                    # Store product_id for metadata
+                    if product_id is None and 'productId' in record:
+                        product_id = record['productId']
+
+        if not df_records:
+            print("No valid price records found")
+            return False
+
+        # Create DataFrame from processed records
+        df = pd.DataFrame(df_records)
+
     except Exception as e:
         print(f"Error reading file: {e}")
         return False
-
-    # Extract NAV data
-    if 'data' not in data or not data['data']:
-        print("No data found in JSON file")
-        return False
-
-    print(f"Found {len(data['data'])} records in file")
-
-    # Process the data
-    df_records = []
-    product_id = None
-
-    for record in data['data']:
-        if 'nav' in record and 'navDate' in record:
-            df_records.append({
-                'date': pd.to_datetime(record['navDate']),
-                'price': float(record['nav']),
-                'product_id': record.get('productId')
-            })
-
-            # Store product_id for metadata
-            if product_id is None and 'productId' in record:
-                product_id = record['productId']
-
-    if not df_records:
-        print("No valid price records found")
-        return False
-
-    # Create DataFrame
-    df = pd.DataFrame(df_records)
 
     # Remove duplicate dates, keep the latest entry
     df = df.drop_duplicates(subset=['date'], keep='last')
@@ -158,8 +193,9 @@ def main():
 
     if len(sys.argv) < 2:
         print("Usage: python import_stock_data.py <file_path> [asset_name]")
+        print("Example: python import_stock_data.py data/vti-112025.csv 'Vanguard Total Stock Market ETF'")
+        print("Example: python import_stock_data.py data/qqq-112025.csv")
         print("Example: python import_stock_data.py data/dcbf-20251120.txt 'Dragon Capital Balanced Fund'")
-        print("Example: python import_stock_data.py data/uveef-20251120.txt")
         return
 
     file_path = sys.argv[1]
