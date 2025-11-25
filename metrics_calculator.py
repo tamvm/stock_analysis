@@ -22,7 +22,28 @@ class MetricsCalculator:
         df = pd.read_sql_query(query, conn, params=asset_codes)
         conn.close()
 
-        df['date'] = pd.to_datetime(df['date'])
+        # Handle mixed date formats in the database
+        try:
+            df['date'] = pd.to_datetime(df['date'])
+        except ValueError:
+            # Try different approaches for mixed formats
+            try:
+                df['date'] = pd.to_datetime(df['date'], format='mixed')
+            except (ValueError, TypeError):
+                # Fallback approach - convert each date individually
+                dates = []
+                for date_str in df['date']:
+                    try:
+                        if ' ' in str(date_str):
+                            # Has timestamp
+                            dates.append(pd.to_datetime(date_str, format='%Y-%m-%d %H:%M:%S'))
+                        else:
+                            # Just date
+                            dates.append(pd.to_datetime(date_str, format='%Y-%m-%d'))
+                    except:
+                        # Last resort - let pandas infer
+                        dates.append(pd.to_datetime(date_str, errors='coerce'))
+                df['date'] = dates
 
         # Pivot to get assets as columns
         price_data = df.pivot(index='date', columns='asset_code', values='price')

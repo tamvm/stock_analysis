@@ -256,7 +256,28 @@ class DataProcessor:
         df = pd.read_sql_query(query, conn, params=params)
         conn.close()
 
-        df['date'] = pd.to_datetime(df['date'])
+        # Handle mixed date formats in the database
+        try:
+            df['date'] = pd.to_datetime(df['date'])
+        except ValueError:
+            # Try different approaches for mixed formats
+            try:
+                df['date'] = pd.to_datetime(df['date'], format='mixed')
+            except (ValueError, TypeError):
+                # Fallback approach - convert each date individually
+                dates = []
+                for date_str in df['date']:
+                    try:
+                        if ' ' in str(date_str):
+                            # Has timestamp
+                            dates.append(pd.to_datetime(date_str, format='%Y-%m-%d %H:%M:%S'))
+                        else:
+                            # Just date
+                            dates.append(pd.to_datetime(date_str, format='%Y-%m-%d'))
+                    except:
+                        # Last resort - let pandas infer
+                        dates.append(pd.to_datetime(date_str, errors='coerce'))
+                df['date'] = dates
         return df
 
 if __name__ == "__main__":
