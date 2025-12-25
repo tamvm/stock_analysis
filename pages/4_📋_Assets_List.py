@@ -116,7 +116,8 @@ try:
     if len(metrics_df) > 0:
         # Merge metrics with assets
         assets_df = assets_df.merge(
-            metrics_df[['asset_code', 'return_1y', 'return_3y_annualized', 'sharpe_ratio', 'max_drawdown_3y', 'calculated_at']],
+            metrics_df[['asset_code', 'return_1y', 'return_3y_annualized', 'return_5y_annualized', 
+                        'sharpe_ratio', 'max_drawdown_3y', 'calculated_at']],
             on='asset_code',
             how='left'
         )
@@ -124,6 +125,7 @@ try:
         # Add empty metric columns
         assets_df['return_1y'] = None
         assets_df['return_3y_annualized'] = None
+        assets_df['return_5y_annualized'] = None
         assets_df['sharpe_ratio'] = None
         assets_df['max_drawdown_3y'] = None
         assets_df['calculated_at'] = None
@@ -147,129 +149,118 @@ try:
     
     st.markdown("---")
     
-    # Function to display asset section
-    def display_asset_section(title, emoji, df, section_color):
-        if len(df) > 0:
-            st.subheader(f"{emoji} {title}")
-            st.markdown(f"*{len(df)} asset(s) available*")
-            
-            # Create cards for each asset
-            cols_per_row = 3
-            rows = (len(df) + cols_per_row - 1) // cols_per_row
-            
-            for row in range(rows):
-                cols = st.columns(cols_per_row)
-                
-                for col_idx in range(cols_per_row):
-                    asset_idx = row * cols_per_row + col_idx
-                    
-                    if asset_idx < len(df):
-                        asset = df.iloc[asset_idx]
-                        
-                        with cols[col_idx]:
-                            # Create a card-like container
-                            with st.container():
-                                # Format metrics
-                                metrics_html = ""
-                                if pd.notna(asset.get('return_1y')):
-                                    return_1y = asset['return_1y'] * 100
-                                    return_color = "#28a745" if return_1y >= 0 else "#dc3545"
-                                    metrics_html += f'<p style="margin: 5px 0;"><strong>1Y Return:</strong> <span style="color: {return_color};">{return_1y:.2f}%</span></p>'
-                                
-                                if pd.notna(asset.get('return_3y_annualized')):
-                                    return_3y = asset['return_3y_annualized'] * 100
-                                    return_color = "#28a745" if return_3y >= 0 else "#dc3545"
-                                    metrics_html += f'<p style="margin: 5px 0;"><strong>3Y Return:</strong> <span style="color: {return_color};">{return_3y:.2f}%</span></p>'
-                                
-                                if pd.notna(asset.get('sharpe_ratio')):
-                                    sharpe = asset['sharpe_ratio']
-                                    sharpe_color = "#28a745" if sharpe >= 0.5 else "#ffc107" if sharpe >= 0 else "#dc3545"
-                                    metrics_html += f'<p style="margin: 5px 0;"><strong>Sharpe:</strong> <span style="color: {sharpe_color};">{sharpe:.2f}</span></p>'
-                                
-                                if pd.notna(asset.get('max_drawdown_3y')):
-                                    max_dd = asset['max_drawdown_3y'] * 100
-                                    metrics_html += f'<p style="margin: 5px 0;"><strong>Max DD (3Y):</strong> <span style="color: #dc3545;">{max_dd:.2f}%</span></p>'
-                                
-                                if not metrics_html:
-                                    metrics_html = '<p style="margin: 5px 0; color: #999; font-style: italic;">No metrics calculated</p>'
-                                
-                                st.markdown(f"""
-                                <div style="
-                                    padding: 20px;
-                                    border-radius: 10px;
-                                    background: linear-gradient(135deg, {section_color}15 0%, {section_color}05 100%);
-                                    border-left: 4px solid {section_color};
-                                    margin-bottom: 10px;
-                                    min-height: 220px;
-                                ">
-                                    <h3 style="margin-top: 0; color: {section_color};">{asset['asset_code']}</h3>
-                                    <p style="margin: 5px 0;"><strong>Type:</strong> {asset['asset_type'].title()}</p>
-                                    <p style="margin: 5px 0;"><strong>Inception:</strong> {asset['inception_date'].strftime('%Y-%m-%d')}</p>
-                                    <p style="margin: 5px 0;"><strong>Records:</strong> {asset['record_count']:,}</p>
-                                    <hr style="margin: 10px 0; border: none; border-top: 1px solid #ddd;">
-                                    {metrics_html}
-                                    <p style="margin: 5px 0; color: #666; font-size: 0.85em;">
-                                        Since {asset['inception_date'].year} • {(datetime.now() - asset['inception_date']).days // 365} years
-                                    </p>
-                                </div>
-                                """, unsafe_allow_html=True)
-                                
-                                # Add button to view details
-                                if st.button(
-                                    f"📊 View Details",
-                                    key=f"detail_{asset['asset_code']}",
-                                    use_container_width=True
-                                ):
-                                    st.session_state['selected_detail_asset'] = asset['asset_code']
-                                    st.switch_page("pages/2_📊_Asset_Detail.py")
-            
-            st.markdown("---")
+    # Asset Comparison Table with Filters
+    st.subheader("🔍 Asset Comparison Table")
+    st.markdown("Filter and sort assets to compare metrics side-by-side")
     
-    # Display each section
-    display_asset_section("Mutual Funds", "🏦", funds_df, "#1f77b4")
-    display_asset_section("ETFs", "📈", etfs_df, "#ff7f0e")
-    display_asset_section("Benchmarks", "📊", benchmarks_df, "#2ca02c")
+    # Filters
+    col1, col2, col3 = st.columns(3)
     
-    # Add a quick comparison section
-    st.subheader("🔍 Quick Comparison")
-    st.markdown("Select multiple assets to compare on the main dashboard")
+    with col1:
+        # Asset type filter
+        asset_types = ['All'] + sorted(assets_df['asset_type'].unique().tolist())
+        selected_type = st.selectbox("Filter by Type", asset_types, key="type_filter")
     
-    # Create a simple table for quick reference with metrics
-    columns_to_include = ['asset_code', 'asset_type', 'inception_date', 'record_count', 
-                          'return_1y', 'return_3y_annualized', 'return_5y_annualized', 
-                          'sharpe_ratio', 'max_drawdown_3y']
-    comparison_df = assets_df[columns_to_include].copy()
+    with col2:
+        # Metrics availability filter
+        metrics_filter = st.selectbox(
+            "Metrics Status",
+            ["All", "With Metrics", "Without Metrics"],
+            key="metrics_filter"
+        )
     
-    # Format dates and percentages
-    comparison_df['inception_date'] = comparison_df['inception_date'].dt.strftime('%Y-%m-%d')
+    with col3:
+        # Search by asset code
+        search_term = st.text_input("Search Asset Code", "", key="search_filter")
+    
+    # Apply filters
+    filtered_df = assets_df.copy()
+    
+    if selected_type != 'All':
+        filtered_df = filtered_df[filtered_df['asset_type'] == selected_type]
+    
+    if metrics_filter == "With Metrics":
+        filtered_df = filtered_df[filtered_df['return_1y'].notna()]
+    elif metrics_filter == "Without Metrics":
+        filtered_df = filtered_df[filtered_df['return_1y'].isna()]
+    
+    if search_term:
+        filtered_df = filtered_df[filtered_df['asset_code'].str.contains(search_term, case=False, na=False)]
+    
+    # Prepare display dataframe
+    display_df = filtered_df.copy()
+    
+    # Format columns for display
+    display_df['inception_date'] = display_df['inception_date'].dt.strftime('%Y-%m-%d')
     
     # Format percentage columns
     for col in ['return_1y', 'return_3y_annualized', 'return_5y_annualized', 'max_drawdown_3y']:
-        if col in comparison_df.columns:
-            comparison_df[col] = comparison_df[col].apply(
+        if col in display_df.columns:
+            display_df[col] = display_df[col].apply(
                 lambda x: f"{x*100:.2f}%" if pd.notna(x) else "N/A"
             )
     
     # Format Sharpe ratio
-    if 'sharpe_ratio' in comparison_df.columns:
-        comparison_df['sharpe_ratio'] = comparison_df['sharpe_ratio'].apply(
+    if 'sharpe_ratio' in display_df.columns:
+        display_df['sharpe_ratio'] = display_df['sharpe_ratio'].apply(
             lambda x: f"{x:.2f}" if pd.notna(x) else "N/A"
         )
     
-    # Rename columns for display
-    comparison_df.columns = ['Asset Code', 'Type', 'Inception', 'Records', 
-                             '1Y Return', '3Y Return (p.a.)', '5Y Return (p.a.)', 
-                             'Sharpe Ratio', 'Max DD (3Y)']
+    # Format calculated_at timestamp
+    if 'calculated_at' in display_df.columns:
+        display_df['calculated_at'] = pd.to_datetime(display_df['calculated_at'], errors='coerce')
+        display_df['calculated_at'] = display_df['calculated_at'].apply(
+            lambda x: x.strftime('%Y-%m-%d %H:%M') if pd.notna(x) else "N/A"
+        )
     
-    # Convert to proper types to avoid Arrow serialization issues
-    for col in comparison_df.columns:
-        comparison_df[col] = comparison_df[col].astype(str)
+    # Select and rename columns for display
+    columns_to_display = {
+        'asset_code': 'Asset Code',
+        'asset_type': 'Type',
+        'inception_date': 'Inception',
+        'record_count': 'Records',
+        'return_1y': '1Y Return',
+        'return_3y_annualized': '3Y Return (p.a.)',
+        'return_5y_annualized': '5Y Return (p.a.)',
+        'sharpe_ratio': 'Sharpe Ratio',
+        'max_drawdown_3y': 'Max DD (3Y)',
+        'calculated_at': 'Last Calculated'
+    }
     
+    display_df = display_df[list(columns_to_display.keys())].rename(columns=columns_to_display)
+    
+    # Convert all to string to avoid Arrow serialization issues
+    for col in display_df.columns:
+        display_df[col] = display_df[col].astype(str)
+    
+    # Display count
+    st.info(f"📊 Showing {len(display_df)} of {len(assets_df)} assets")
+    
+    # Display the dataframe with enhanced features
     st.dataframe(
-        comparison_df,
+        display_df,
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
+        height=600  # Fixed height for better scrolling
     )
+    
+    # Export option
+    st.markdown("---")
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        st.markdown("💡 **Tip:** Click on column headers to sort. Use filters above to narrow down assets.")
+    
+    with col2:
+        # Download button for CSV export
+        csv = display_df.to_csv(index=False)
+        st.download_button(
+            label="📥 Download CSV",
+            data=csv,
+            file_name=f"assets_metrics_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
     
     # Navigation buttons
     st.markdown("---")
@@ -290,3 +281,4 @@ try:
 except Exception as e:
     st.error(f"Error loading assets: {e}")
     st.info("Please ensure the database has been initialized by running `python setup.py`")
+
