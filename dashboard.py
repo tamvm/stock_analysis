@@ -162,20 +162,11 @@ if 'saved_selected_assets' not in st.session_state:
 # Filter saved assets to only include valid ones
 valid_saved_assets = [asset for asset in st.session_state.saved_selected_assets if asset in all_assets]
 
-# Asset selection
-st.sidebar.subheader("Select Assets to Compare")
-selected_assets = st.sidebar.multiselect(
-    "Choose Assets:",
-    options=all_assets,
-    default=valid_saved_assets if valid_saved_assets else (fund_assets[:3] if len(fund_assets) >= 3 else fund_assets),
-    help="Select multiple assets to compare. Includes funds, ETFs, and benchmarks.",
-    key="selected_assets_multiselect"
-)
+# Initialize preset selection state
+if 'preset_selection' not in st.session_state:
+    st.session_state.preset_selection = None
 
-# Update session state for localStorage saving
-st.session_state.selected_assets_ls = selected_assets
-
-# Asset Presets Section
+# Asset Presets Section (BEFORE multiselect)
 st.sidebar.subheader("📌 Quick Presets")
 st.sidebar.markdown("*Click to quickly select asset groups*")
 
@@ -209,9 +200,31 @@ for row in range(rows):
                     use_container_width=True,
                     disabled=len(valid_preset_assets) == 0
                 ):
-                    # Update the multiselect by setting session state
-                    st.session_state.selected_assets_multiselect = valid_preset_assets
+                    # Store preset selection in session state
+                    st.session_state.preset_selection = valid_preset_assets
                     st.rerun()
+
+# Determine default selection
+if st.session_state.preset_selection is not None:
+    default_selection = st.session_state.preset_selection
+    st.session_state.preset_selection = None  # Clear after use
+elif valid_saved_assets:
+    default_selection = valid_saved_assets
+else:
+    default_selection = fund_assets[:3] if len(fund_assets) >= 3 else fund_assets
+
+# Asset selection
+st.sidebar.subheader("Select Assets to Compare")
+selected_assets = st.sidebar.multiselect(
+    "Choose Assets:",
+    options=all_assets,
+    default=default_selection,
+    help="Select multiple assets to compare. Includes funds, ETFs, and benchmarks.",
+    key="selected_assets_multiselect"
+)
+
+# Update session state for localStorage saving
+st.session_state.selected_assets_ls = selected_assets
 
 if not selected_assets:
     st.warning("Please select at least one asset to analyze.")
