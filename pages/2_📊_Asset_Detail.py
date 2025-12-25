@@ -412,6 +412,9 @@ with tab4:
         }
 
         stats_df = pd.DataFrame(stats_data)
+        # Convert to string to avoid Arrow serialization issues
+        stats_df['Metric'] = stats_df['Metric'].astype(str)
+        stats_df['Value'] = stats_df['Value'].astype(str)
         st.dataframe(stats_df, use_container_width=True, hide_index=True)
 
         # Data availability
@@ -434,6 +437,9 @@ with tab4:
         }
 
         data_df = pd.DataFrame(data_info)
+        # Convert to string to avoid Arrow serialization issues
+        data_df['Metric'] = data_df['Metric'].astype(str)
+        data_df['Value'] = data_df['Value'].astype(str)
         st.dataframe(data_df, use_container_width=True, hide_index=True)
 
     except Exception as e:

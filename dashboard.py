@@ -197,6 +197,11 @@ st.sidebar.subheader("Advanced Analysis")
 if st.sidebar.button("🔍 Advanced Filter & Analysis", use_container_width=True):
     st.switch_page("pages/3_🔍_Advanced_Filter.py")
 
+# Assets list navigation
+if st.sidebar.button("📋 View All Assets", use_container_width=True):
+    st.switch_page("pages/4_📋_Assets_List.py")
+
+
 # Handle localStorage settings for rolling years
 saved_rolling_years = loaded_settings.get('rolling_years', 4)
 rolling_years_options = [1, 2, 3, 4, 5]

@@ -34,12 +34,21 @@ Professional investment analysis and comparison tool for mutual funds and benchm
 pip install -r requirements.txt
 ```
 
-### 2. Process Data
+### 2. Setup Database
+```bash
+# Run database migrations
+python run_migrations.py
+
+# Check migration status
+python run_migrations.py --status
+```
+
+### 3. Process Data
 ```bash
 python setup.py
 ```
 
-### 2.1 Import Individual Fund/Stock Data
+### 3.1 Import Individual Fund/Stock Data
 Use the dedicated import scripts to add new data:
 
 #### Fund Data (JSON format)
@@ -68,12 +77,20 @@ python import_stock_data.py data/spy-112025.csv
 python import_stock_data.py data/dcbf-20251120.txt "Dragon Capital Balanced Fund"
 ```
 
-### 3. Launch Dashboard
+### 4. Calculate Metrics (Optional)
+```bash
+# Calculate all metrics via command line
+python metrics_job_manager.py
+
+# Or use the UI button in the Assets List page
+```
+
+### 5. Launch Dashboard
 ```bash
 streamlit run dashboard.py
 ```
 
-### 4. Open Browser
+### 6. Open Browser
 Navigate to `http://localhost:8501`
 
 ## Dashboard Features
@@ -113,7 +130,90 @@ Navigate to `http://localhost:8501`
 - **Performance period selection**: 3Y, 5Y, inception
 - **Enhanced Chart Colors**: Improved visibility with thicker lines and better color palette
 
-## Key Metrics Calculated
+## Asset Metrics Calculation System
+
+### Overview
+The portal includes an automated metrics calculation system that computes comprehensive financial performance indicators for all assets. Metrics are calculated on-demand and stored in the database for quick access.
+
+### Calculated Metrics
+
+#### Performance Metrics
+- **1-Year Return**: Absolute return over the past year
+- **3-Year Annualized Return (p.a.)**: Compound annual growth rate over 3 years
+- **5-Year Annualized Return (p.a.)**: Compound annual growth rate over 5 years
+- **Rolling CAGR**: Moving window analysis for 1Y, 3Y, 4Y, and 5Y periods
+
+#### Risk Metrics
+- **Annualized Standard Deviation**: Volatility measure (annualized)
+  - Traditional assets (stocks, ETFs, funds): Based on 252 trading days/year
+  - Crypto assets: Based on 365 trading days/year (24/7 trading)
+- **Sharpe Ratio**: Risk-adjusted returns using 4.5% risk-free rate (current 10-year US Treasury yield)
+- **Maximum Drawdown (3Y)**: Largest peak-to-trough decline over 3 years
+- **Maximum Drawdown (5Y)**: Largest peak-to-trough decline over 5 years
+
+### How to Calculate Metrics
+
+#### Via UI (Recommended)
+1. Navigate to the **Assets List** page
+2. Click the **"🔄 Calculate Metrics"** button
+3. Watch the progress bar as metrics are calculated for each asset
+4. View calculated metrics in asset cards and comparison table
+
+#### Via Command Line
+```bash
+python metrics_job_manager.py
+```
+
+### Database Migrations
+
+The system uses a simple SQL-based migration system to manage database schema changes.
+
+#### Running Migrations
+```bash
+# Run all pending migrations
+python run_migrations.py
+
+# Check migration status
+python run_migrations.py --status
+```
+
+#### Migration Files
+- `000_initial_schema.sql` - Documents existing schema
+- `001_create_asset_metrics.sql` - Creates asset_metrics table
+- `002_create_calculation_runs.sql` - Creates calculation_runs tracking table
+
+### Configuration
+
+Financial constants are defined in `config.py`:
+
+```python
+RISK_FREE_RATE = 0.045  # 4.5% - Current 10-year US Treasury yield
+
+TRADING_DAYS = {
+    'fund': 252,       # Traditional mutual funds
+    'etf': 252,        # Exchange-traded funds
+    'benchmark': 252,  # Stock market indices
+    'crypto': 365,     # Cryptocurrencies (24/7 trading)
+    'stock': 252       # Individual stocks
+}
+```
+
+### Background Processing
+
+Metrics calculation runs asynchronously in a background thread:
+- **Progress Tracking**: Real-time updates via progress bar
+- **Error Handling**: Individual asset failures don't stop the entire job
+- **Persistence**: Results stored in `asset_metrics` table
+- **History**: Calculation runs tracked in `calculation_runs` table
+
+### Data Requirements
+
+- **1-Year Metrics**: Requires at least 1 year of price data
+- **3-Year Metrics**: Requires at least 3 years of price data
+- **5-Year Metrics**: Requires at least 5 years of price data
+- **Insufficient Data**: Metrics are left as NULL if data is unavailable
+
+## Key Metrics Calculated (Legacy)
 
 ### Performance Metrics
 - **Total Return**: Absolute percentage gain/loss
@@ -124,7 +224,7 @@ Navigate to `http://localhost:8501`
 ### Risk Metrics
 - **Volatility**: Standard deviation of returns (annualized)
 - **Maximum Drawdown**: Largest peak-to-trough decline
-- **Sharpe Ratio**: Risk-adjusted returns (2% risk-free rate)
+- **Sharpe Ratio**: Risk-adjusted returns (4.5% risk-free rate)
 - **Sortino Ratio**: Downside risk-adjusted returns
 
 ### Correlation Analysis
