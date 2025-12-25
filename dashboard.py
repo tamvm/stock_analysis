@@ -7,6 +7,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from data_processor import DataProcessor
 from metrics_calculator import MetricsCalculator
+from config import ASSET_PRESETS, ROLLING_WINDOW_DAYS, RISK_FREE_RATE
 
 # Page config
 st.set_page_config(
@@ -173,6 +174,44 @@ selected_assets = st.sidebar.multiselect(
 
 # Update session state for localStorage saving
 st.session_state.selected_assets_ls = selected_assets
+
+# Asset Presets Section
+st.sidebar.subheader("📌 Quick Presets")
+st.sidebar.markdown("*Click to quickly select asset groups*")
+
+# Populate dynamic presets
+presets = ASSET_PRESETS.copy()
+presets['All Funds'] = fund_assets
+presets['All ETFs'] = etf_assets
+presets['All Benchmarks'] = benchmark_assets
+
+# Create preset buttons in a grid
+preset_names = list(presets.keys())
+cols_per_row = 2
+rows = (len(preset_names) + cols_per_row - 1) // cols_per_row
+
+for row in range(rows):
+    cols = st.sidebar.columns(cols_per_row)
+    for col_idx in range(cols_per_row):
+        preset_idx = row * cols_per_row + col_idx
+        if preset_idx < len(preset_names):
+            preset_name = preset_names[preset_idx]
+            preset_assets = presets[preset_name]
+            
+            # Filter to only valid assets
+            valid_preset_assets = [a for a in preset_assets if a in all_assets]
+            
+            with cols[col_idx]:
+                if st.button(
+                    preset_name,
+                    key=f"preset_{preset_name}",
+                    help=f"Select: {', '.join(valid_preset_assets) if valid_preset_assets else 'No assets'}",
+                    use_container_width=True,
+                    disabled=len(valid_preset_assets) == 0
+                ):
+                    # Update the multiselect by setting session state
+                    st.session_state.selected_assets_multiselect = valid_preset_assets
+                    st.rerun()
 
 if not selected_assets:
     st.warning("Please select at least one asset to analyze.")
@@ -736,6 +775,9 @@ with tab2:
         st.error(f"Error creating price changes chart: {e}")
 
 with tab3:
+    # Risk-Return Analysis with Rolling Metrics
+    st.markdown("**📊 Risk-Return Analysis**: Compare risk-adjusted performance across assets")
+    
     # Risk-Return Scatter Plot
     try:
         if analysis_periods:
@@ -775,6 +817,139 @@ with tab3:
                     st.warning("Not enough data for risk-return analysis.")
     except Exception as e:
         st.error(f"Error creating risk-return chart: {e}")
+    
+    # Rolling Standard Deviation (Volatility)
+    st.markdown(f"### Rolling {ROLLING_WINDOW_DAYS}-Day Standard Deviation (Volatility)")
+    st.markdown(f"*Shows how risk changes over time. Higher values indicate higher volatility.*")
+    
+    try:
+        if not returns_data.empty:
+            # Calculate rolling standard deviation
+            rolling_std = returns_data.rolling(window=ROLLING_WINDOW_DAYS).std() * np.sqrt(252) * 100  # Annualized
+            
+            if not rolling_std.empty:
+                fig_std = go.Figure()
+                
+                for i, asset in enumerate(rolling_std.columns):
+                    data = rolling_std[asset].dropna()
+                    if len(data) > 0:
+                        fig_std.add_trace(go.Scatter(
+                            x=data.index,
+                            y=data.values,
+                            mode='lines',
+                            name=asset,
+                            line=dict(color=CHART_COLORS[i % len(CHART_COLORS)], width=2),
+                            hovertemplate=f'<b>{asset}</b><br>' +
+                                        'Date: %{x}<br>' +
+                                        'Volatility: %{y:.1f}%<br>' +
+                                        '<extra></extra>'
+                        ))
+                
+                fig_std.update_layout(
+                    title=f"Rolling {ROLLING_WINDOW_DAYS}-Day Annualized Standard Deviation",
+                    xaxis_title="Date",
+                    yaxis_title="Annualized Volatility (%)",
+                    hovermode="x unified",
+                    height=400,
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+                
+                st.plotly_chart(fig_std, use_container_width=True)
+                
+                # Volatility statistics
+                st.markdown("#### Volatility Statistics")
+                vol_stats = []
+                for asset in rolling_std.columns:
+                    data = rolling_std[asset].dropna()
+                    if len(data) > 0:
+                        vol_stats.append({
+                            'Asset': asset,
+                            'Current Vol': f"{data.iloc[-1]:.1f}%",
+                            'Avg Vol': f"{data.mean():.1f}%",
+                            'Min Vol': f"{data.min():.1f}%",
+                            'Max Vol': f"{data.max():.1f}%"
+                        })
+                
+                if vol_stats:
+                    vol_df = pd.DataFrame(vol_stats)
+                    st.dataframe(vol_df, use_container_width=True, hide_index=True)
+            else:
+                st.warning(f"Not enough data for {ROLLING_WINDOW_DAYS}-day rolling volatility calculation.")
+    except Exception as e:
+        st.error(f"Error creating rolling volatility chart: {e}")
+    
+    # Rolling Sharpe Ratio
+    st.markdown(f"### Rolling {ROLLING_WINDOW_DAYS}-Day Sharpe Ratio")
+    st.markdown(f"*Risk-adjusted returns using {RISK_FREE_RATE*100:.1f}% risk-free rate. Higher is better.*")
+    
+    try:
+        if not returns_data.empty:
+            # Calculate rolling Sharpe ratio
+            rolling_mean = returns_data.rolling(window=ROLLING_WINDOW_DAYS).mean() * 252  # Annualized return
+            rolling_std = returns_data.rolling(window=ROLLING_WINDOW_DAYS).std() * np.sqrt(252)  # Annualized std
+            rolling_sharpe = (rolling_mean - RISK_FREE_RATE) / rolling_std
+            
+            if not rolling_sharpe.empty:
+                fig_sharpe = go.Figure()
+                
+                for i, asset in enumerate(rolling_sharpe.columns):
+                    data = rolling_sharpe[asset].dropna()
+                    if len(data) > 0:
+                        fig_sharpe.add_trace(go.Scatter(
+                            x=data.index,
+                            y=data.values,
+                            mode='lines',
+                            name=asset,
+                            line=dict(color=CHART_COLORS[i % len(CHART_COLORS)], width=2),
+                            hovertemplate=f'<b>{asset}</b><br>' +
+                                        'Date: %{x}<br>' +
+                                        'Sharpe Ratio: %{y:.2f}<br>' +
+                                        '<extra></extra>'
+                        ))
+                
+                fig_sharpe.update_layout(
+                    title=f"Rolling {ROLLING_WINDOW_DAYS}-Day Sharpe Ratio",
+                    xaxis_title="Date",
+                    yaxis_title="Sharpe Ratio",
+                    hovermode="x unified",
+                    height=400,
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+                
+                # Add reference lines
+                fig_sharpe.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
+                fig_sharpe.add_hline(y=1, line_dash="dot", line_color="green", opacity=0.3, 
+                                    annotation_text="Good (>1)", annotation_position="right")
+                
+                st.plotly_chart(fig_sharpe, use_container_width=True)
+                
+                # Sharpe ratio statistics
+                st.markdown("#### Sharpe Ratio Statistics")
+                sharpe_stats = []
+                for asset in rolling_sharpe.columns:
+                    data = rolling_sharpe[asset].dropna()
+                    if len(data) > 0:
+                        # Count periods where Sharpe > 1 (good performance)
+                        good_periods = (data > 1).sum()
+                        total_periods = len(data)
+                        good_rate = (good_periods / total_periods * 100) if total_periods > 0 else 0
+                        
+                        sharpe_stats.append({
+                            'Asset': asset,
+                            'Current Sharpe': f"{data.iloc[-1]:.2f}",
+                            'Avg Sharpe': f"{data.mean():.2f}",
+                            'Min Sharpe': f"{data.min():.2f}",
+                            'Max Sharpe': f"{data.max():.2f}",
+                            'Good Rate (>1)': f"{good_rate:.1f}%"
+                        })
+                
+                if sharpe_stats:
+                    sharpe_df = pd.DataFrame(sharpe_stats)
+                    st.dataframe(sharpe_df, use_container_width=True, hide_index=True)
+            else:
+                st.warning(f"Not enough data for {ROLLING_WINDOW_DAYS}-day rolling Sharpe ratio calculation.")
+    except Exception as e:
+        st.error(f"Error creating rolling Sharpe ratio chart: {e}")
 
 with tab4:
     # Correlation Heatmap
@@ -805,8 +980,11 @@ with tab4:
 
 with tab5:
     # Drawdown Analysis
+    st.markdown("**📉 Drawdown Analysis**: Shows the decline from peak value. Maximum drawdown points are highlighted.")
+    
     try:
         drawdown_data = {}
+        max_dd_points = {}  # Store max drawdown points for annotations
 
         for asset in selected_assets:
             if asset in price_data.columns:
@@ -814,6 +992,11 @@ with tab5:
                 peak = prices.expanding(min_periods=1).max()
                 drawdown = ((prices - peak) / peak * 100)
                 drawdown_data[asset] = drawdown
+                
+                # Find maximum drawdown point
+                max_dd_idx = drawdown.idxmin()
+                max_dd_value = drawdown.min()
+                max_dd_points[asset] = {'date': max_dd_idx, 'value': max_dd_value}
 
         if drawdown_data:
             dd_df = pd.DataFrame(drawdown_data)
@@ -823,6 +1006,7 @@ with tab5:
             for i, asset in enumerate(dd_df.columns):
                 data = dd_df[asset].dropna()
                 if len(data) > 0:
+                    # Add drawdown line
                     fig_dd.add_trace(go.Scatter(
                         x=data.index,
                         y=data.values,
@@ -836,18 +1020,58 @@ with tab5:
                                     'Drawdown: %{y:.1f}%<br>' +
                                     '<extra></extra>'
                     ))
+                    
+                    # Add marker for maximum drawdown
+                    if asset in max_dd_points:
+                        max_dd = max_dd_points[asset]
+                        fig_dd.add_trace(go.Scatter(
+                            x=[max_dd['date']],
+                            y=[max_dd['value']],
+                            mode='markers+text',
+                            name=f'{asset} Max DD',
+                            marker=dict(
+                                size=12,
+                                color=CHART_COLORS[i % len(CHART_COLORS)],
+                                symbol='x',
+                                line=dict(width=2, color='white')
+                            ),
+                            text=[f"{max_dd['value']:.1f}%"],
+                            textposition='bottom center',
+                            textfont=dict(size=10, color=CHART_COLORS[i % len(CHART_COLORS)]),
+                            hovertemplate=f'<b>{asset} - Maximum Drawdown</b><br>' +
+                                        f"Date: {max_dd['date'].strftime('%Y-%m-%d')}<br>" +
+                                        f"Max DD: {max_dd['value']:.1f}%<br>" +
+                                        '<extra></extra>',
+                            showlegend=False
+                        ))
 
             fig_dd.update_layout(
-                title="Drawdown Analysis",
+                title="Drawdown Analysis (Maximum Drawdown Points Highlighted)",
                 xaxis_title="Date",
                 yaxis_title="Drawdown (%)",
                 hovermode="x unified",
-                height=400
+                height=500,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
             )
 
             fig_dd.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
 
             st.plotly_chart(fig_dd, use_container_width=True)
+            
+            # Add max drawdown summary table
+            st.subheader("Maximum Drawdown Summary")
+            max_dd_summary = []
+            for asset, dd_info in max_dd_points.items():
+                max_dd_summary.append({
+                    'Asset': asset,
+                    'Max Drawdown': f"{dd_info['value']:.2f}%",
+                    'Date': dd_info['date'].strftime('%Y-%m-%d'),
+                    'Days from Peak': (dd_info['date'] - price_data[asset].idxmax()).days
+                })
+            
+            if max_dd_summary:
+                max_dd_df = pd.DataFrame(max_dd_summary)
+                st.dataframe(max_dd_df, use_container_width=True, hide_index=True)
 
     except Exception as e:
         st.error(f"Error creating drawdown chart: {e}")

@@ -39,3 +39,20 @@ MIN_YEARS_FOR_1Y_METRICS = 1  # Minimum years of data required for 1-year metric
 
 # Rolling CAGR Windows (in years)
 ROLLING_WINDOWS = [1, 3, 4, 5]
+
+# Asset Presets for Quick Selection
+# Users can add custom presets by editing this dictionary
+# Format: 'Preset Name': ['ASSET1', 'ASSET2', ...]
+ASSET_PRESETS = {
+    'All Funds': [],  # Will be populated dynamically with all fund assets
+    'All ETFs': [],   # Will be populated dynamically with all ETF assets
+    'All Benchmarks': [],  # Will be populated dynamically with all benchmark assets
+    
+    # Custom presets - edit these for your presentation needs
+    'My Presentation': ['VCBFBCF', 'VNINDEX', 'SP500'],
+    'Top Performers': ['UVEEF', 'DCDS', 'VNINDEX'],
+    'Conservative Mix': ['DCBF', 'VCBFTBF', 'SP500'],
+}
+
+# Chart Settings
+ROLLING_WINDOW_DAYS = 90  # Rolling window for volatility and Sharpe ratio charts (90 days recommended)
