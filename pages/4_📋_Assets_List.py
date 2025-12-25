@@ -236,20 +236,29 @@ try:
     # Display count
     st.info(f"📊 Showing {len(display_df)} of {len(assets_df)} assets")
     
-    # Display the dataframe with enhanced features
-    st.dataframe(
+    # Display the dataframe with enhanced features and selection
+    event = st.dataframe(
         display_df,
         use_container_width=True,
         hide_index=True,
-        height=600  # Fixed height for better scrolling
+        height=600,  # Fixed height for better scrolling
+        on_select="rerun",
+        selection_mode="single-row"
     )
+    
+    # Handle row selection - navigate to Asset Detail page
+    if event.selection and len(event.selection.rows) > 0:
+        selected_row_idx = event.selection.rows[0]
+        selected_asset_code = filtered_df.iloc[selected_row_idx]['asset_code']
+        st.session_state['selected_detail_asset'] = selected_asset_code
+        st.switch_page("pages/2_📊_Asset_Detail.py")
     
     # Export option
     st.markdown("---")
     col1, col2 = st.columns([3, 1])
     
     with col1:
-        st.markdown("💡 **Tip:** Click on column headers to sort. Use filters above to narrow down assets.")
+        st.markdown("💡 **Tip:** Click on any row to view asset details. Click column headers to sort. Use filters above to narrow down assets.")
     
     with col2:
         # Download button for CSV export
@@ -275,10 +284,9 @@ try:
             st.switch_page("pages/1_📚_Metrics_Guide.py")
     
     with col3:
-        if st.button("🔍 Advanced Filter", use_container_width=True):
-            st.switch_page("pages/3_🔍_Advanced_Filter.py")
+        if st.button("📊 Price Data", use_container_width=True):
+            st.switch_page("pages/3_📊_Price_Data.py")
 
 except Exception as e:
     st.error(f"Error loading assets: {e}")
     st.info("Please ensure the database has been initialized by running `python setup.py`")
-

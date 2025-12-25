@@ -16,8 +16,8 @@ from metrics_calculator import MetricsCalculator
 
 # Page config
 st.set_page_config(
-    page_title="Advanced Filter & Analysis",
-    page_icon="🔍",
+    page_title="Price Data Listing",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -37,8 +37,8 @@ def init_processors():
 processor, calc = init_processors()
 
 # Title
-st.title("🔍 Advanced Filter & Analysis")
-st.markdown("Filter assets by date range and compare multiple funds/stocks with customizable metrics")
+st.title("📊 Price Data Listing")
+st.markdown("View and filter historical price data for all assets")
 
 # Load available assets
 try:
@@ -675,4 +675,4 @@ with tab5:
 
 # Footer
 st.markdown("---")
-st.markdown("**🔍 Advanced Filter & Analysis** | [Dashboard](/) | [Metrics Guide](/1_📚_Metrics_Guide) | [Asset Detail](/2_📊_Asset_Detail)")
+st.markdown("**📊 Price Data Listing** | [Dashboard](/) | [Metrics Guide](/1_📚_Metrics_Guide) | [Asset Detail](/2_📊_Asset_Detail)")
