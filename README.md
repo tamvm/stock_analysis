@@ -49,33 +49,41 @@ python setup.py
 ```
 
 ### 3.1 Import Individual Fund/Stock Data
-Use the dedicated import scripts to add new data:
 
-#### Fund Data (JSON format)
+#### Import US Stocks/ETFs (CSV files)
+Use this script for US stocks and ETFs from the `data/us/` folder:
+
 ```bash
-# Import fund data
-python import_fund_data.py data/vesaf-20251120.txt VESAF
-python import_fund_data.py data/vemeef-20251120.txt VEMEEF
+# Batch import all CSV files from data/us/ folder
+python import_us_data.py
 
-# List all assets in database
-python import_fund_data.py --list-assets
+# Import single US stock/ETF (CSV format)
+python import_us_data.py data/us/HistoricalData_1767040077932-qqq.csv
 
-# View help
-python import_fund_data.py --help
+# Import with custom asset name
+python import_us_data.py data/us/HistoricalData_1767040130966-vti.csv "Vanguard Total Stock Market ETF"
 ```
 
-#### Stock/ETF Data (CSV or JSON format)
+#### Import Vietnamese Funds (API)
+Use the dedicated VN funds import script to fetch data directly from the fmarket API:
+
 ```bash
-# Import stock/ETF data with custom name
-python import_stock_data.py data/vti-112025.csv "Vanguard Total Stock Market ETF"
-python import_stock_data.py data/qqq-112025.csv "Invesco QQQ ETF"
+# Import all VN funds (recommended)
+python import_vn_funds.py
 
-# Import using filename as asset code
-python import_stock_data.py data/spy-112025.csv
-
-# Import JSON fund data (alternative to import_fund_data.py)
-python import_stock_data.py data/dcbf-20251120.txt "Dragon Capital Balanced Fund"
+# Import single fund by asset code
+python import_vn_funds.py vesaf
+python import_vn_funds.py dcds
 ```
+
+**Supported VN Funds:**
+- `vesaf`, `dcbf`, `dcde`, `dcds`, `magef`, `ssisca`, `uveef`, `vcamdf`, `vcbfbcf`, `vcbftbf`, `vemeef`
+
+**Key Points:**
+- `import_us_data.py`: For US stocks/ETFs (CSV files from `data/us/` folder)
+- `import_vn_funds.py`: For Vietnamese funds (API data from fmarket)
+- Both scripts automatically detect asset codes and override existing data
+- Asset types are automatically set: `us_stock`, `us_etf`, or `vn_fund`
 
 ### 4. Calculate Metrics (Optional)
 ```bash
@@ -253,7 +261,7 @@ Metrics calculation runs asynchronously in a background thread:
 
 ```
 stock_analysis/
-├── data/                           # Source data files
+├── data/                           # Vietnamese fund data
 │   ├── dcds-20251120.txt          # Fund NAV history (JSON)
 │   ├── dcde-20251120.txt
 │   ├── magef-20251120.txt
@@ -263,6 +271,14 @@ stock_analysis/
 │   └── references/
 │       ├── vnindex-2017.csv       # VN-Index price history
 │       └── voo-2017.csv           # S&P 500 price history
+├── data/us/                       # US stock/ETF data
+│   ├── HistoricalData_*-amzn.csv  # Amazon stock price history
+│   ├── HistoricalData_*-googl.csv # Google stock price history
+│   ├── HistoricalData_*-meta.csv  # Meta stock price history
+│   ├── HistoricalData_*-qqq.csv   # QQQ ETF price history
+│   ├── HistoricalData_*-tsla.csv  # Tesla stock price history
+│   ├── HistoricalData_*-voo.csv   # VOO ETF price history
+│   └── HistoricalData_*-vti.csv   # VTI ETF price history
 ├── db/                            # Database storage
 │   └── investment_data.db         # SQLite database
 ├── pages/                         # Streamlit multi-page structure
@@ -271,34 +287,43 @@ stock_analysis/
 ├── data_processor.py              # Data loading and processing
 ├── metrics_calculator.py          # Financial calculations
 ├── setup.py                      # Initial data processing
-├── import_fund_data.py            # Individual fund data import script
-├── import_stock_data.py           # Stock/ETF data import script (CSV/JSON)
+├── import_us_data.py              # Unified data import script (CSV/JSON)
+├── import_vn_funds.py             # VN funds API import script
+├── import_nasdaq_data.py          # Legacy NASDAQ import script
 ├── requirements.txt               # Python dependencies
 └── README.md                      # This file
 ```
 
 ## Data Sources
 
-### US Stocks Data
+### US Stocks/ETFs Data
 - **Source**: [NASDAQ Historical Data](https://www.nasdaq.com/market-activity/etf/vti/historical?page=1&rows_per_page=10&timeline=y10)
-- **Coverage**: ETF historical data with 10-year timeline
-- **Format**: CSV download available
+- **Format**: CSV files with pattern `HistoricalData_<timestamp>-<symbol>.csv`
+- **Location**: `data/us/` folder
+- **Assets**: AMZN, GOOGL, META, QQQ, TSLA, VOO, VTI
 
-### Vietnam Stocks Data
+### Vietnamese Fund Data
 - **Source**: [FMarket VN Fund Data](https://fmarket.vn/quy/vcbfbcf)
-- **Coverage**: Vietnamese mutual fund data
-- **Format**: JSON fund NAV history
+- **Format**: JSON files with `.txt` extension
+- **Location**: `data/` folder
+- **Method**: Inspect network requests to download the data
 
 ## Data Update Process
 
 ### Adding New Assets
-1. Add new data file to `/data` folder
-   - **Funds**: JSON format (use `import_fund_data.py`)
-   - **Stocks/ETFs**: CSV format (use `import_stock_data.py`)
-2. Import using appropriate script:
-   - `python import_fund_data.py data/newfund-20251120.txt NEWFUND`
-   - `python import_stock_data.py data/newstock-112025.csv "New Stock Name"`
-3. Verify with: `python import_fund_data.py --list-assets`
+1. Add new data file to appropriate folder:
+   - **Vietnamese Funds**: JSON files to `data/` folder
+   - **US Stocks/ETFs**: CSV files to `data/us/` folder
+2. Import using unified script:
+   ```bash
+   # Single file
+   python import_us_data.py data/newfund-20251120.txt "New Fund Name"
+   python import_us_data.py data/us/HistoricalData_*-spy.csv
+   
+   # Batch import all folders
+   python import_us_data.py
+   ```
+3. Verify import in the dashboard Assets List page
 
 ### Bulk Updates (Future)
 1. Add new data files to `/data` folder

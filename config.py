@@ -49,9 +49,11 @@ ASSET_PRESETS = {
     'All Benchmarks': [],  # Will be populated dynamically with all benchmark assets
     
     # Custom presets - edit these for your presentation needs
-    'My Presentation': ['VCBFBCF', 'VNINDEX', 'SP500'],
-    'Top Performers': ['UVEEF', 'DCDS', 'VNINDEX'],
-    'Conservative Mix': ['DCBF', 'VCBFTBF', 'SP500'],
+    'VN Top Funds': ['UVEEF', 'DCDS', 'DCDE', 'VESAF', 'VEOF', 'VCBFBCF', 'VNINDEX'],
+    'VN Conservative Mix': ['DCBF', 'DCDS', 'VCBFTBF', 'VNINDEX'],
+    'US Top Funds': ['VOO', 'QQQ', 'VTI'],
+    'US Tech': ['VOO', 'QQQ', 'AAPL', 'GOOG', 'MSFT', 'AMZN', 'TSLA'],
+    'World Mix': ['VOO', 'QQQ', 'DCDS', 'VNINDEX']
 }
 
 # Chart Settings
