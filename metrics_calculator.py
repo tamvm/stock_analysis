@@ -45,6 +45,22 @@ class MetricsCalculator:
                         dates.append(pd.to_datetime(date_str, errors='coerce'))
                 df['date'] = dates
 
+        # CRITICAL FIX: Normalize all dates to timezone-naive to prevent comparison errors
+        # Different data sources (VN funds, crypto, US stocks) may have different timezone handling
+        try:
+            # Try to check if dates are timezone-aware
+            if hasattr(df['date'].dtype, 'tz') and df['date'].dtype.tz is not None:
+                # If timezone-aware, convert to UTC then remove timezone
+                df['date'] = df['date'].dt.tz_convert('UTC').dt.tz_localize(None)
+        except (AttributeError, TypeError):
+            # If we can't determine timezone, try to localize anyway
+            try:
+                # This will fail if already timezone-naive, which is fine
+                df['date'] = df['date'].dt.tz_localize(None)
+            except:
+                # Already timezone-naive, nothing to do
+                pass
+        
         # Pivot to get assets as columns
         price_data = df.pivot(index='date', columns='asset_code', values='price')
 

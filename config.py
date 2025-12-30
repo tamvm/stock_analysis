@@ -42,19 +42,37 @@ ROLLING_WINDOWS = [1, 3, 4, 5]
 
 # Asset Presets for Quick Selection
 # Users can add custom presets by editing this dictionary
-# Format: 'Preset Name': ['ASSET1', 'ASSET2', ...]
+# 
+# Format Options:
+#   1. List of asset codes: ['ASSET1', 'ASSET2', ...]
+#   2. Asset type specification: ['@type:asset_type_name']
+#   3. Mixed: ['ASSET1', '@type:asset_type_name', 'ASSET2']
+#
+# Available asset types:
+#   - vn_fund: Vietnamese mutual funds
+#   - us_etf: US ETFs
+#   - us_stock: US stocks
+#   - crypto: Cryptocurrencies
+#   - benchmark: Benchmark indices (SP500)
+#   - vn_index: Vietnamese indices (VNINDEX, VN30)
+#
 ASSET_PRESETS = {
-    'All Funds': [],  # Will be populated dynamically with all fund assets
-    'All ETFs': [],   # Will be populated dynamically with all ETF assets
-    'All Benchmarks': [],  # Will be populated dynamically with all benchmark assets
+    # Dynamic presets - will be populated at runtime
+    'All VN Funds': ['@type:vn_fund'],
+    'All US ETFs': ['@type:us_etf'],
+    'All Benchmarks': ['@type:benchmark', '@type:vn_index'],
+    'All US Stocks': ['@type:us_stock'],
+    'All Crypto': ['@type:crypto'],
     
-    # Custom presets - edit these for your presentation needs
-    'VN Top Funds': ['UVEEF', 'DCDS', 'DCDE', 'VESAF', 'VEOF', 'VCBFBCF', 'VNINDEX'],
-    'VN Conservative Mix': ['DCBF', 'DCDS', 'VCBFTBF', 'VNINDEX'],
-    'US Top Funds': ['VOO', 'QQQ', 'VTI'],
-    'US Tech': ['VOO', 'QQQ', 'AAPL', 'GOOG', 'MSFT', 'AMZN', 'TSLA'],
-    'World Mix': ['VOO', 'QQQ', 'DCDS', 'VNINDEX']
+    # Custom presets - mix of explicit assets and type specifications
+    'VN Top Funds': ['DCDS', 'DCDE', 'VESAF', 'VCBFBCF', 'VNINDEX'],
+    'VN Mix': ['DCBF', 'DCDS', 'VCBFTBF', 'VNINDEX'],
+    'US Tech Stocks': ['GOOG', 'META', 'TSLA', 'AMZN'],
+    'Global Mix': ['VOO', 'QQQ', 'DCDS', 'VNINDEX', 'BTC'],
+    'Everything': ['@type:vn_fund', '@type:us_etf', '@type:us_stock', '@type:crypto', '@type:benchmark', '@type:vn_index']
 }
+
+
 
 # Chart Settings
 ROLLING_WINDOW_DAYS = 90  # Rolling window for volatility and Sharpe ratio charts (90 days recommended)

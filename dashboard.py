@@ -146,10 +146,17 @@ st.sidebar.header("Asset Selection & Settings")
 # Load available assets
 try:
     assets_df = processor.get_asset_list()
-    fund_assets = assets_df[assets_df['asset_type'] == 'fund']['asset_code'].tolist()
-    etf_assets = assets_df[assets_df['asset_type'] == 'etf']['asset_code'].tolist()
-    benchmark_assets = assets_df[assets_df['asset_type'] == 'benchmark']['asset_code'].tolist()
-    all_assets = fund_assets + etf_assets + benchmark_assets
+    # VN funds
+    fund_assets = assets_df[assets_df['asset_type'] == 'vn_fund']['asset_code'].tolist()
+    # US ETFs
+    etf_assets = assets_df[assets_df['asset_type'] == 'us_etf']['asset_code'].tolist()
+    # Benchmarks include: benchmark type, vn_index type
+    benchmark_assets = assets_df[assets_df['asset_type'].isin(['benchmark', 'vn_index'])]['asset_code'].tolist()
+    # Also get other asset types
+    stock_assets = assets_df[assets_df['asset_type'] == 'us_stock']['asset_code'].tolist()
+    crypto_assets = assets_df[assets_df['asset_type'] == 'crypto']['asset_code'].tolist()
+    
+    all_assets = fund_assets + etf_assets + benchmark_assets + stock_assets + crypto_assets
 except:
     st.error("Database not found. Please run data_processor.py first to load data.")
     st.stop()
@@ -162,19 +169,50 @@ if 'saved_selected_assets' not in st.session_state:
 # Filter saved assets to only include valid ones
 valid_saved_assets = [asset for asset in st.session_state.saved_selected_assets if asset in all_assets]
 
-# Initialize preset selection state
-if 'preset_selection' not in st.session_state:
-    st.session_state.preset_selection = None
+# Initialize preset selection state - this will hold the currently selected preset assets
+if 'preset_selected_assets' not in st.session_state:
+    st.session_state.preset_selected_assets = None
 
 # Asset Presets Section (BEFORE multiselect)
 st.sidebar.subheader("📌 Quick Presets")
 st.sidebar.markdown("*Click to quickly select asset groups*")
 
-# Populate dynamic presets
-presets = ASSET_PRESETS.copy()
-presets['All Funds'] = fund_assets
-presets['All ETFs'] = etf_assets
-presets['All Benchmarks'] = benchmark_assets
+# Create asset type mapping for resolving @type: specifications
+asset_type_map = {
+    'vn_fund': fund_assets,
+    'us_etf': etf_assets,
+    'us_stock': stock_assets,
+    'crypto': crypto_assets,
+    'benchmark': assets_df[assets_df['asset_type'] == 'benchmark']['asset_code'].tolist(),
+    'vn_index': assets_df[assets_df['asset_type'] == 'vn_index']['asset_code'].tolist()
+}
+
+# Function to resolve preset assets (handles both explicit assets and @type: specifications)
+def resolve_preset_assets(preset_definition):
+    """
+    Resolve a preset definition that may contain:
+    - Explicit asset codes: 'DCDS', 'VOO', etc.
+    - Asset type specifications: '@type:vn_fund', '@type:crypto', etc.
+    
+    Returns a list of actual asset codes.
+    """
+    resolved_assets = []
+    for item in preset_definition:
+        if isinstance(item, str) and item.startswith('@type:'):
+            # Extract the asset type name
+            asset_type = item[6:]  # Remove '@type:' prefix
+            # Add all assets of this type
+            if asset_type in asset_type_map:
+                resolved_assets.extend(asset_type_map[asset_type])
+        else:
+            # Regular asset code
+            resolved_assets.append(item)
+    return resolved_assets
+
+# Populate presets by resolving @type: specifications
+presets = {}
+for preset_name, preset_definition in ASSET_PRESETS.items():
+    presets[preset_name] = resolve_preset_assets(preset_definition)
 
 # Create preset buttons in a grid
 preset_names = list(presets.keys())
@@ -200,18 +238,33 @@ for row in range(rows):
                     use_container_width=True,
                     disabled=len(valid_preset_assets) == 0
                 ):
-                    # Update widget state directly
-                    st.session_state.selected_assets_multiselect = valid_preset_assets
-                    # Also update our tracking of saved assets so the default is correct on next run
+                    # Store the preset selection in session state
+                    st.session_state.preset_selected_assets = valid_preset_assets
+                    # Also update our tracking of saved assets
                     st.session_state.saved_selected_assets = valid_preset_assets
-                    st.rerun()
+
+# Determine the default value for multiselect
+# Priority: 1) Preset selection, 2) Saved assets, 3) VN Top Funds preset
+if st.session_state.preset_selected_assets is not None:
+    default_assets = st.session_state.preset_selected_assets
+    # Clear the preset selection after using it
+    st.session_state.preset_selected_assets = None
+elif valid_saved_assets:
+    default_assets = valid_saved_assets
+else:
+    # Use VN Top Funds as default
+    vn_top_funds_preset = resolve_preset_assets(ASSET_PRESETS.get('VN Top Funds', []))
+    default_assets = [a for a in vn_top_funds_preset if a in all_assets]
+    # Fallback to first 3 funds if VN Top Funds preset is empty
+    if not default_assets:
+        default_assets = fund_assets[:3] if len(fund_assets) >= 3 else fund_assets
 
 # Asset selection
 st.sidebar.subheader("Select Assets to Compare")
 selected_assets = st.sidebar.multiselect(
     "Choose Assets:",
     options=all_assets,
-    default=valid_saved_assets if valid_saved_assets else (fund_assets[:3] if len(fund_assets) >= 3 else fund_assets),
+    default=default_assets,
     help="Select multiple assets to compare. Includes funds, ETFs, and benchmarks.",
     key="selected_assets_multiselect"
 )

@@ -39,7 +39,8 @@ def fetch_index_history(ticker, asset_code):
     Returns:
         DataFrame with date and price columns, or None if failed
     """
-    url = f'https://api2.simplize.vn/api/historical/prices/chart?ticker={ticker}&period=all'
+    # Use OHLCV API with daily interval for more granular data
+    url = f'https://api2.simplize.vn/api/historical/prices/ohlcv?ticker={ticker}&size=100000&interval=1d&type=index'
     
     headers = {
         'accept': 'application/json, text/plain, */*',
@@ -50,13 +51,13 @@ def fetch_index_history(ticker, asset_code):
     }
     
     try:
-        print(f"  Fetching data for {asset_code.upper()} (ticker: {ticker})...")
+        print(f"  Fetching daily data for {asset_code.upper()} (ticker: {ticker})...")
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         
         response_data = response.json()
         
-        # Simplize API returns: {status: 200, message: "Success", data: [...]}
+        # Simplize OHLCV API returns: {status: 200, message: "Success", data: [...]}
         if not response_data or 'data' not in response_data:
             print(f"  ⚠️  No data returned for {asset_code.upper()}")
             return None
@@ -67,15 +68,15 @@ def fetch_index_history(ticker, asset_code):
             print(f"  ⚠️  Invalid data format for {asset_code.upper()}")
             return None
         
-        # Process the data - format is [timestamp, open, high, low, close, volume]
+        # Process the data - OHLCV format is [timestamp, open, high, low, close, volume]
         records = []
         for record in data:
-            if len(record) >= 5:
-                timestamp = record[0]  # seconds (not milliseconds)
+            if isinstance(record, list) and len(record) >= 5:
+                timestamp = record[0]  # Unix timestamp in seconds
                 close_price = record[4]  # close price
                 
                 records.append({
-                    'date': pd.to_datetime(timestamp, unit='s'),  # Changed from 'ms' to 's'
+                    'date': pd.to_datetime(timestamp, unit='s'),
                     'price': float(close_price),
                     'product_id': None  # No product_id for indices
                 })
@@ -88,7 +89,7 @@ def fetch_index_history(ticker, asset_code):
         df = df.drop_duplicates(subset=['date'], keep='last')
         df = df.sort_values('date').reset_index(drop=True)
         
-        print(f"  ✓ Fetched {len(df)} records")
+        print(f"  ✓ Fetched {len(df)} daily records")
         print(f"    Date range: {df['date'].min().date()} to {df['date'].max().date()}")
         
         return df

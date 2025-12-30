@@ -132,8 +132,8 @@ python setup.py
 # Calculate metrics
 python metrics_job_manager.py
 
-# Launch dashboard
-streamlit run dashboard.py
+# Start the server manually when ready
+# streamlit run dashboard.py
 ```
 
 ### Production (Railway)
