@@ -1,31 +1,58 @@
 # 📈 Investment Analysis Portal
 
-Professional investment analysis and comparison tool for mutual funds and benchmark indices.
+Professional investment analysis and comparison tool for mutual funds, stocks, ETFs, cryptocurrencies, and benchmark indices.
 
 ## Features
 
+- **Multi-Asset Support**: Vietnamese funds, US stocks/ETFs, cryptocurrencies (BTC, ETH), and market indices
 - **Rolling CAGR Analysis**: Compare rolling 1Y, 3Y, 4Y, and 5Y compound annual growth rates
-- **Multi-Asset Comparison**: Select and toggle multiple funds and benchmarks
+- **Multi-Asset Comparison**: Select and toggle multiple assets across different types
 - **Professional Metrics**: Sharpe ratio, maximum drawdown, volatility, correlation analysis
 - **Interactive Charts**: Hover tooltips, zoom/pan, date range selection with enhanced visibility
-- **Benchmark Comparison**: Compare against VN-Index and S&P 500
+- **Benchmark Comparison**: Compare against VN-Index, VN30, and S&P 500
 - **Performance Summary**: 3Y, 5Y, and since-inception analysis
 - **📚 Metrics Guide**: Comprehensive explanation of all financial metrics and formulas
 - **Enhanced Visualization**: Improved chart colors and line thickness for better readability
+- **Cryptocurrency Analytics**: 24/7 trading data with specialized volatility calculations
 
 ## Available Assets
 
-### 🏦 Mutual Funds
-- **DCDS** (since 2004) - 3,458 records
-- **DCDE** (since 2008) - 3,390 records
-- **VCBFBCF** (since 2014) - 881 records
-- **MAGEF** (since 2019) - 919 records
-- **UVEEF** (since 2022) - 750 records
-- **VCAMDF** (since 2024) - 375 records
+### 🏦 Vietnamese Mutual Funds (11 funds)
+- **DCDS** (since 2004-05-20) - 3,486 records
+- **DCDE** (since 2008-02-29) - 3,418 records
+- **DCBF** (since 2013-06-10) - 1,038 records
+- **VCBFTBF** (since 2013-12-26) - 974 records
+- **VCBFBCF** (since 2014-08-27) - 905 records
+- **SSISCA** (since 2014-09-26) - 2,024 records
+- **VESAF** (since 2017-04-25) - 1,329 records
+- **MAGEF** (since 2019-07-23) - 947 records
+- **UVEEF** (since 2022-11-08) - 778 records
+- **VEMEEF** (since 2023-05-09) - 650 records
+- **VCAMDF** (since 2024-03-18) - 403 records
 
-### 📊 Benchmarks
-- **VN-Index** (since 2017) - 2,220 records
-- **S&P 500** (since 2017) - 2,265 records
+### 📊 Vietnamese Indices (2 indices)
+- **VNINDEX** - VN-Index (since 2000-06-30) - 306 records
+- **VN30** - VN30 Index (since 2012-01-31) - 167 records
+
+### 🇺🇸 US ETFs (3 ETFs)
+- **QQQ** - Invesco QQQ Trust (since 2015-12-30) - 2,513 records
+- **VOO** - Vanguard S&P 500 ETF (since 2015-12-30) - 2,513 records
+- **VTI** - Vanguard Total Stock Market ETF (since 2015-12-30) - 2,513 records
+
+### 📈 US Stocks (4 stocks)
+- **AMZN** - Amazon (since 2015-12-30) - 2,513 records
+- **GOOG** - Google (since 2015-12-30) - 2,513 records
+- **META** - Meta Platforms (since 2015-12-30) - 2,513 records
+- **TSLA** - Tesla (since 2015-12-30) - 2,513 records
+
+### ₿ Cryptocurrencies (2 assets)
+- **BTC** - Bitcoin (since 2014-09-17) - 4,121 records
+- **ETH** - Ethereum (since 2017-11-09) - 2,972 records
+
+### 📊 Benchmarks (1 index)
+- **SP500** - S&P 500 Index (since 2017-01-03) - 2,265 records
+
+**Total: 23 assets** across 6 asset types with comprehensive historical price data
 
 ## Quick Start
 
@@ -68,22 +95,50 @@ python import_us_data.py data/us/HistoricalData_1767040130966-vti.csv "Vanguard 
 Use the dedicated VN funds import script to fetch data directly from the fmarket API:
 
 ```bash
-# Import all VN funds (recommended)
+# Import all VN assets (funds + indices) - recommended
 python import_vn_funds.py
 
 # Import single fund by asset code
 python import_vn_funds.py vesaf
 python import_vn_funds.py dcds
+
+# Import single index
+python import_vn_funds.py vnindex
+python import_vn_funds.py vn30
 ```
 
-**Supported VN Funds:**
+**Supported VN Funds (fmarket API):**
 - `vesaf`, `dcbf`, `dcde`, `dcds`, `magef`, `ssisca`, `uveef`, `vcamdf`, `vcbfbcf`, `vcbftbf`, `vemeef`
+
+**Supported VN Indices (Simplize API):**
+- `vnindex` - VN-Index (since 2000, 306 monthly records)
+- `vn30` - VN30 Index (since 2012, 167 monthly records)
+
+#### Import Cryptocurrencies (Yahoo Finance API)
+Use the dedicated crypto import script to fetch data directly from Yahoo Finance using the yfinance library:
+
+```bash
+# Import all cryptocurrencies - recommended
+python import_crypto_data.py
+
+# Import single cryptocurrency by asset code
+python import_crypto_data.py btc
+python import_crypto_data.py eth
+```
+
+**Supported Cryptocurrencies (Yahoo Finance API):**
+- `btc` - Bitcoin (BTC-USD, since 2014-09-17, ~4,121 records)
+- `eth` - Ethereum (ETH-USD, since 2017-11-09, ~2,972 records)
 
 **Key Points:**
 - `import_us_data.py`: For US stocks/ETFs (CSV files from `data/us/` folder)
-- `import_vn_funds.py`: For Vietnamese funds (API data from fmarket)
-- Both scripts automatically detect asset codes and override existing data
-- Asset types are automatically set: `us_stock`, `us_etf`, or `vn_fund`
+- `import_vn_funds.py`: For Vietnamese funds and indices (API data)
+  - VN Funds: fmarket API with `asset_type='vn_fund'`
+  - VN Indices: Simplize API with `asset_type='vn_index'`
+- `import_crypto_data.py`: For cryptocurrencies (Yahoo Finance API)
+  - Uses yfinance library with `asset_type='crypto'`
+  - Daily price data with 365 trading days/year for volatility calculations
+- All scripts automatically detect asset codes and override existing data
 
 ### 4. Calculate Metrics (Optional)
 ```bash
@@ -289,6 +344,7 @@ stock_analysis/
 ├── setup.py                      # Initial data processing
 ├── import_us_data.py              # Unified data import script (CSV/JSON)
 ├── import_vn_funds.py             # VN funds API import script
+├── import_crypto_data.py          # Cryptocurrency import script (Yahoo Finance)
 ├── import_nasdaq_data.py          # Legacy NASDAQ import script
 ├── requirements.txt               # Python dependencies
 └── README.md                      # This file
@@ -307,6 +363,13 @@ stock_analysis/
 - **Format**: JSON files with `.txt` extension
 - **Location**: `data/` folder
 - **Method**: Inspect network requests to download the data
+
+### Cryptocurrency Data
+- **Source**: Yahoo Finance API via yfinance library - [web link](https://query1.finance.yahoo.com/v8/finance/chart/BTC-USD?events=capitalGain%7Cdiv%7Csplit&formatted=true&includeAdjustedClose=true&interval=1d&period1=1410912000&period2=1767061845&symbol=BTC-USD&userYfid=true&lang=en-AU&region=AU)
+- **Format**: API data (no local files needed)
+- **Assets**: BTC (Bitcoin), ETH (Ethereum)
+- **Method**: Automated fetch using `import_crypto_data.py`
+- **Update**: Run script to fetch latest data from Yahoo Finance
 
 ## Data Update Process
 
