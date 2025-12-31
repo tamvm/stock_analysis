@@ -47,18 +47,28 @@ class MetricsCalculator:
 
         # CRITICAL FIX: Normalize all dates to timezone-naive to prevent comparison errors
         # Different data sources (VN funds, crypto, US stocks) may have different timezone handling
+        # Force conversion to timezone-naive by using tz_localize(None) which removes timezone info
         try:
-            # Try to check if dates are timezone-aware
-            if hasattr(df['date'].dtype, 'tz') and df['date'].dtype.tz is not None:
-                # If timezone-aware, convert to UTC then remove timezone
+            # First, ensure all dates are datetime objects
+            if not pd.api.types.is_datetime64_any_dtype(df['date']):
+                df['date'] = pd.to_datetime(df['date'], utc=True)
+            
+            # Check if the series has timezone info
+            if df['date'].dt.tz is not None:
+                # Convert to UTC first, then remove timezone
                 df['date'] = df['date'].dt.tz_convert('UTC').dt.tz_localize(None)
-        except (AttributeError, TypeError):
-            # If we can't determine timezone, try to localize anyway
+            else:
+                # Try to remove timezone anyway (handles mixed cases)
+                try:
+                    df['date'] = pd.to_datetime(df['date'].astype(str)).dt.tz_localize(None)
+                except:
+                    # Already timezone-naive
+                    pass
+        except Exception as e:
+            # Last resort: convert to string and back to remove any timezone info
             try:
-                # This will fail if already timezone-naive, which is fine
-                df['date'] = df['date'].dt.tz_localize(None)
+                df['date'] = pd.to_datetime(df['date'].astype(str))
             except:
-                # Already timezone-naive, nothing to do
                 pass
         
         # Pivot to get assets as columns

@@ -76,6 +76,10 @@ def import_stock_data(file_path, db_path="db/investment_data.db", asset_name=Non
                 try:
                     # Parse date and price
                     date = pd.to_datetime(row['Date'])
+                    # Normalize to timezone-naive
+                    if hasattr(date, 'tz') and date.tz is not None:
+                        date = date.tz_localize(None)
+                    
                     price_str = str(row['Close/Last']).replace('$', '').replace(',', '')
                     price = float(price_str)
                     
@@ -117,8 +121,13 @@ def import_stock_data(file_path, db_path="db/investment_data.db", asset_name=Non
             
             for record in data['data']:
                 if 'nav' in record and 'navDate' in record:
+                    date = pd.to_datetime(record['navDate'])
+                    # Normalize to timezone-naive
+                    if hasattr(date, 'tz') and date.tz is not None:
+                        date = date.tz_localize(None)
+                    
                     df_records.append({
-                        'date': pd.to_datetime(record['navDate']),
+                        'date': date,
                         'price': float(record['nav']),
                         'product_id': record.get('productId')
                     })

@@ -51,8 +51,13 @@ def fetch_crypto_history(asset_code, symbol_info):
         for date, row in hist.iterrows():
             close_price = row['Close']
             if pd.notna(close_price):  # Skip NaN values
+                # Normalize date to timezone-naive to ensure consistent storage
+                date_naive = pd.to_datetime(date)
+                if hasattr(date_naive, 'tz') and date_naive.tz is not None:
+                    date_naive = date_naive.tz_localize(None)
+                
                 records.append({
-                    'date': pd.to_datetime(date),
+                    'date': date_naive,
                     'price': float(close_price),
                     'product_id': None  # No product_id for crypto
                 })

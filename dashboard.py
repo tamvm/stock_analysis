@@ -660,7 +660,7 @@ except Exception as e:
 # Additional charts row
 st.subheader("📊 Additional Analysis")
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["Cumulative Returns", "Price Changes", "Risk-Return", "Correlation", "Drawdown"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Cumulative Returns", "Price Changes", "Risk-Return", "Sharpe Ratio", "Correlation", "Drawdown"])
 
 with tab1:
     # Cumulative Returns Chart
@@ -1012,6 +1012,117 @@ with tab3:
         st.error(f"Error creating rolling Sharpe ratio chart: {e}")
 
 with tab4:
+    # Sharpe Ratio Comparison
+    st.markdown("**📊 Sharpe Ratio Comparison**: Compare risk-adjusted returns across assets and time periods. Higher Sharpe ratio indicates better risk-adjusted performance.")
+    
+    try:
+        if analysis_periods and summary:
+            # Collect Sharpe ratios for all periods
+            sharpe_data = []
+            
+            for period in analysis_periods:
+                if period in summary and 'sharpe_ratio' in summary[period]:
+                    for asset in selected_assets:
+                        sharpe = summary[period]['sharpe_ratio'].get(asset)
+                        if isinstance(sharpe, (int, float, np.floating)) and not np.isnan(sharpe):
+                            sharpe_data.append({
+                                'Asset': asset,
+                                'Period': period,
+                                'Sharpe Ratio': sharpe
+                            })
+            
+            if sharpe_data:
+                sharpe_df = pd.DataFrame(sharpe_data)
+                
+                # Create grouped bar chart
+                fig_sharpe = px.bar(
+                    sharpe_df,
+                    x='Asset',
+                    y='Sharpe Ratio',
+                    color='Period',
+                    barmode='group',
+                    title="Sharpe Ratio Comparison by Period",
+                    labels={'Sharpe Ratio': 'Sharpe Ratio', 'Asset': 'Asset'},
+                    color_discrete_sequence=px.colors.qualitative.Set2
+                )
+                
+                # Add reference line at Sharpe = 1 (good performance threshold)
+                fig_sharpe.add_hline(
+                    y=1, 
+                    line_dash="dash", 
+                    line_color="green", 
+                    opacity=0.5,
+                    annotation_text="Good (>1)",
+                    annotation_position="right"
+                )
+                
+                # Add reference line at Sharpe = 0
+                fig_sharpe.add_hline(
+                    y=0, 
+                    line_dash="dash", 
+                    line_color="gray", 
+                    opacity=0.5
+                )
+                
+                fig_sharpe.update_layout(
+                    height=500,
+                    hovermode="x unified",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+                
+                st.plotly_chart(fig_sharpe, use_container_width=True)
+                
+                # Summary table
+                st.markdown("### Sharpe Ratio Summary")
+                
+                # Create pivot table for easy comparison
+                summary_data = []
+                for asset in selected_assets:
+                    row = {'Asset': asset}
+                    for period in analysis_periods:
+                        if period in summary and 'sharpe_ratio' in summary[period]:
+                            sharpe = summary[period]['sharpe_ratio'].get(asset)
+                            if isinstance(sharpe, (int, float, np.floating)) and not np.isnan(sharpe):
+                                row[f'{period} Sharpe'] = f"{sharpe:.2f}"
+                            else:
+                                row[f'{period} Sharpe'] = 'N/A'
+                    
+                    # Add average Sharpe across periods
+                    sharpe_values = []
+                    for period in analysis_periods:
+                        if period in summary and 'sharpe_ratio' in summary[period]:
+                            sharpe = summary[period]['sharpe_ratio'].get(asset)
+                            if isinstance(sharpe, (int, float, np.floating)) and not np.isnan(sharpe):
+                                sharpe_values.append(sharpe)
+                    
+                    if sharpe_values:
+                        row['Avg Sharpe'] = f"{np.mean(sharpe_values):.2f}"
+                    else:
+                        row['Avg Sharpe'] = 'N/A'
+                    
+                    summary_data.append(row)
+                
+                if summary_data:
+                    summary_table = pd.DataFrame(summary_data)
+                    st.dataframe(summary_table, use_container_width=True, hide_index=True)
+                    
+                    # Interpretation guide
+                    st.markdown("""
+                    **Sharpe Ratio Interpretation:**
+                    - **< 0**: Poor - Returns below risk-free rate
+                    - **0 to 1**: Acceptable - Returns above risk-free rate but low risk-adjusted performance
+                    - **1 to 2**: Good - Solid risk-adjusted returns
+                    - **2 to 3**: Very Good - Excellent risk-adjusted returns
+                    - **> 3**: Exceptional - Outstanding risk-adjusted performance
+                    """)
+            else:
+                st.warning("No Sharpe ratio data available for the selected periods.")
+        else:
+            st.warning("Please select analysis periods to view Sharpe ratio comparison.")
+    except Exception as e:
+        st.error(f"Error creating Sharpe ratio comparison: {e}")
+
+with tab5:
     # Correlation Heatmap
     try:
         if 'correlation' in summary and not summary['correlation'].empty:
@@ -1038,7 +1149,7 @@ with tab4:
     except Exception as e:
         st.error(f"Error creating correlation chart: {e}")
 
-with tab5:
+with tab6:
     # Drawdown Analysis
     st.markdown("**📉 Drawdown Analysis**: Shows the decline from peak value. Maximum drawdown points are highlighted.")
     

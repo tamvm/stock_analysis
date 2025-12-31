@@ -153,6 +153,10 @@ def fetch_nav_history(product_id, asset_code):
                 else:
                     date = pd.to_datetime(nav_date)
                 
+                # Normalize to timezone-naive
+                if hasattr(date, 'tz') and date.tz is not None:
+                    date = date.tz_localize(None)
+                
                 records.append({
                     'date': date,
                     'price': float(record['nav']),

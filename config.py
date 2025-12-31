@@ -65,7 +65,7 @@ ASSET_PRESETS = {
     'All Crypto': ['@type:crypto'],
     
     # Custom presets - mix of explicit assets and type specifications
-    'VN Top Funds': ['DCDS', 'DCDE', 'VESAF', 'VCBFBCF', 'VNINDEX'],
+    'VN Top Funds': ['DCDS', 'VESAF', 'VCBFBCF', 'VNINDEX'],
     'VN Mix': ['DCBF', 'DCDS', 'VCBFTBF', 'VNINDEX'],
     'US Tech Stocks': ['GOOG', 'META', 'TSLA', 'AMZN'],
     'Global Mix': ['VOO', 'QQQ', 'DCDS', 'VNINDEX', 'BTC'],

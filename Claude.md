@@ -67,11 +67,52 @@ stock_analysis/
 - **`schema_migrations`** - Applied migrations tracking
 
 ### Asset Types
-- `fund` - Mutual funds
-- `etf` - Exchange-traded funds
-- `benchmark` - Market indices
+- `vn_fund` - Vietnamese mutual funds
+- `us_etf` - US Exchange-traded funds
+- `us_stock` - US Individual stocks
+- `benchmark` - Market indices (SP500)
+- `vn_index` - Vietnamese indices (VNINDEX, VN30)
 - `crypto` - Cryptocurrencies (24/7 trading)
-- `stock` - Individual stocks
+
+### Datetime Standardization
+
+**CRITICAL**: All datetime values in the database MUST be stored as **timezone-naive** to prevent comparison errors when mixing assets from different sources.
+
+#### Standard Format
+```
+YYYY-MM-DD HH:MM:SS
+Example: 2025-12-30 00:00:00
+```
+
+**NOT**: `2025-12-30 00:00:00+00:00` (timezone-aware)
+
+#### Implementation in Import Scripts
+
+All import scripts (`import_crypto_data.py`, `import_us_data.py`, `import_vn_funds.py`) implement timezone normalization:
+
+```python
+# After parsing datetime
+date = pd.to_datetime(date_value)
+
+# Normalize to timezone-naive
+if hasattr(date, 'tz') and date.tz is not None:
+    date = date.tz_localize(None)
+```
+
+#### Why This Matters
+- Different data sources may return timezone-aware or timezone-naive dates
+- yfinance (crypto data) returns timezone-aware dates
+- Simplize API (VN indices) returns timezone-naive dates
+- fmarket API (VN funds) returns timezone-naive dates
+- Mixing timezone-aware and timezone-naive dates causes Python comparison errors
+- Standardizing to timezone-naive ensures consistent behavior across all calculations
+
+#### Verification
+Check datetime format in database:
+```bash
+sqlite3 db/investment_data.db "SELECT date FROM price_data WHERE asset_code = 'BTC' LIMIT 3;"
+# Should show: 2025-12-28 00:00:00 (no +00:00)
+```
 
 ## Key Features
 
