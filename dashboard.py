@@ -155,11 +155,21 @@ try:
     # Also get other asset types
     stock_assets = assets_df[assets_df['asset_type'] == 'us_stock']['asset_code'].tolist()
     crypto_assets = assets_df[assets_df['asset_type'] == 'crypto']['asset_code'].tolist()
+    commodity_assets = assets_df[assets_df['asset_type'] == 'commodity']['asset_code'].tolist()
     
-    all_assets = fund_assets + etf_assets + benchmark_assets + stock_assets + crypto_assets
+    all_assets = fund_assets + etf_assets + benchmark_assets + stock_assets + crypto_assets + commodity_assets
 except:
     st.error("Database not found. Please run data_processor.py first to load data.")
     st.stop()
+
+# Get URL query parameters for asset selection
+query_params = st.query_params
+url_assets = query_params.get('assets', None)
+
+# Parse URL assets if present (comma-separated)
+url_selected_assets = []
+if url_assets:
+    url_selected_assets = [asset.strip() for asset in url_assets.split(',') if asset.strip() in all_assets]
 
 # Handle localStorage settings for asset selection
 if 'saved_selected_assets' not in st.session_state:
@@ -183,6 +193,7 @@ asset_type_map = {
     'us_etf': etf_assets,
     'us_stock': stock_assets,
     'crypto': crypto_assets,
+    'commodity': commodity_assets,
     'benchmark': assets_df[assets_df['asset_type'] == 'benchmark']['asset_code'].tolist(),
     'vn_index': assets_df[assets_df['asset_type'] == 'vn_index']['asset_code'].tolist()
 }
@@ -238,14 +249,26 @@ for row in range(rows):
                     use_container_width=True,
                     disabled=len(valid_preset_assets) == 0
                 ):
-                    # Store the preset selection in session state
-                    st.session_state.preset_selected_assets = valid_preset_assets
+                    # Directly update the multiselect widget's session state value
+                    st.session_state.selected_assets_multiselect = valid_preset_assets
                     # Also update our tracking of saved assets
                     st.session_state.saved_selected_assets = valid_preset_assets
+                    # Update URL query parameters
+                    if valid_preset_assets:
+                        st.query_params['assets'] = ','.join(valid_preset_assets)
+                    # Trigger a rerun to update the UI
+                    st.rerun()
 
 # Determine the default value for multiselect
-# Priority: 1) Preset selection, 2) Saved assets, 3) VN Top Funds preset
-if st.session_state.preset_selected_assets is not None:
+# Priority: 1) Existing widget value (if already set), 2) URL parameters, 3) Preset selection, 4) Saved assets, 5) VN Top Funds preset
+# Only set default if the widget hasn't been initialized yet
+if 'selected_assets_multiselect' in st.session_state and st.session_state.selected_assets_multiselect is not None:
+    # Widget already has a value, use it (this prevents reset on rerun)
+    default_assets = st.session_state.selected_assets_multiselect
+elif url_selected_assets:
+    # Use assets from URL parameters
+    default_assets = url_selected_assets
+elif st.session_state.preset_selected_assets is not None:
     default_assets = st.session_state.preset_selected_assets
     # Clear the preset selection after using it
     st.session_state.preset_selected_assets = None
@@ -259,6 +282,21 @@ else:
     if not default_assets:
         default_assets = fund_assets[:3] if len(fund_assets) >= 3 else fund_assets
 
+# Callback function to handle asset selection changes
+def on_assets_change():
+    """Update session state and URL parameters when assets are selected"""
+    selected = st.session_state.selected_assets_multiselect
+    st.session_state.selected_assets_ls = selected
+    st.session_state.saved_selected_assets = selected
+    
+    # Update URL query parameters
+    if selected:
+        st.query_params['assets'] = ','.join(selected)
+    else:
+        # Remove assets parameter if no assets selected
+        if 'assets' in st.query_params:
+            del st.query_params['assets']
+
 # Asset selection
 st.sidebar.subheader("Select Assets to Compare")
 selected_assets = st.sidebar.multiselect(
@@ -266,7 +304,8 @@ selected_assets = st.sidebar.multiselect(
     options=all_assets,
     default=default_assets,
     help="Select multiple assets to compare. Includes funds, ETFs, and benchmarks.",
-    key="selected_assets_multiselect"
+    key="selected_assets_multiselect",
+    on_change=on_assets_change
 )
 
 # Update session state for localStorage saving AND internal tracking
@@ -656,6 +695,162 @@ try:
 
 except Exception as e:
     st.error(f"Error calculating rolling CAGR statistics: {e}")
+
+# CAGR Table Section
+st.subheader("📊 Compound Annual Growth Rate (CAGR) Table")
+
+try:
+    # Determine the end date for CAGR calculation
+    # Priority: 1) User-selected end_date, 2) Latest date in database
+    cagr_end_date = end_date if end_date else None
+    
+    # Calculate CAGR table
+    cagr_df = calc.calculate_cagr_table(selected_assets, end_date=cagr_end_date)
+    
+    if not cagr_df.empty:
+        # Get the actual end date used
+        price_data_for_date, _ = calc.get_returns_data(selected_assets)
+        if cagr_end_date:
+            price_data_for_date = price_data_for_date[price_data_for_date.index <= pd.to_datetime(cagr_end_date)]
+        actual_end_date = price_data_for_date.index.max()
+        
+        # Display date information
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            st.markdown(f"**Date:** {actual_end_date.strftime('%b %d, %Y')}")
+        with col2:
+            st.markdown(f"**Assets:** {len(selected_assets)}")
+        
+        # Prepare data for display with formatting
+        display_data = []
+        
+        for asset in cagr_df.index:
+            row = {'Asset': asset}
+            
+            for col in cagr_df.columns:
+                value = cagr_df.loc[asset, col]
+                if pd.isna(value) or value is None:
+                    row[col] = ''
+                else:
+                    row[col] = value
+            
+            display_data.append(row)
+        
+        display_df = pd.DataFrame(display_data)
+        
+        # Function to style the dataframe
+        def style_cagr_table(df):
+            """Apply styling to CAGR table with color coding and star icons for top 3 performers"""
+            
+            # Create a new DataFrame with string values for display
+            styled_data = []
+            
+            for idx in df.index:
+                row = {'Asset': df.loc[idx, 'Asset']}
+                
+                for col in df.columns:
+                    if col == 'Asset':
+                        continue
+                    
+                    val = df.loc[idx, col]
+                    
+                    if val == '' or pd.isna(val):
+                        row[col] = ''
+                    else:
+                        # Determine ranking for this column
+                        col_values = df[col].replace('', np.nan).dropna()
+                        star_icon = ''
+                        
+                        if len(col_values) > 0:
+                            # Sort values in descending order to get rankings
+                            sorted_values = col_values.sort_values(ascending=False)
+                            
+                            # Get unique values to handle ties
+                            unique_values = sorted_values.unique()
+                            
+                            # Determine rank based on value
+                            if len(unique_values) >= 1 and val == unique_values[0]:
+                                star_icon = '⭐'  # 1st place
+                            elif len(unique_values) >= 2 and val == unique_values[1]:
+                                star_icon = '★'   # 2nd place
+                        
+                        # Format number with fixed width (right-aligned)
+                        formatted_number = f"{val:+7.1f}%"
+                        
+                        # Combine icon and number with icon on left, number right-aligned
+                        if star_icon:
+                            row[col] = f"{star_icon} {formatted_number}"
+                        else:
+                            # Add spacing to align with cells that have icons
+                            row[col] = f"  {formatted_number}"
+                
+                styled_data.append(row)
+            
+            return pd.DataFrame(styled_data)
+        
+        # Apply styling
+        styled_display_df = style_cagr_table(display_df)
+        
+        # Function to apply color coding
+        def color_cagr_cells(val):
+            """Apply color based on positive/negative values"""
+            if val == '' or pd.isna(val):
+                return ''
+            
+            # Extract numeric value from formatted string (remove star and %)
+            try:
+                numeric_str = val.replace('⭐', '').replace('★', '').replace('%', '').strip()
+                numeric_val = float(numeric_str)
+                
+                if numeric_val > 0:
+                    return 'background-color: #d4edda; color: #155724; text-align: right; padding: 8px 12px; font-size: 14px;'  # Green
+                elif numeric_val < 0:
+                    return 'background-color: #f8d7da; color: #721c24; text-align: right; padding: 8px 12px; font-size: 14px;'  # Red
+                else:
+                    return 'text-align: right; padding: 8px 12px; font-size: 14px;'
+            except (ValueError, AttributeError):
+                return 'text-align: right; padding: 8px 12px; font-size: 14px;'
+        
+        # Function to style Asset column
+        def style_asset_column(val):
+            """Style the Asset column"""
+            return 'text-align: left; padding: 8px 12px; font-size: 14px; font-weight: 600;'
+        
+        # Apply color styling to all columns except Asset
+        styled_table = styled_display_df.style.map(
+            color_cagr_cells,
+            subset=[col for col in styled_display_df.columns if col != 'Asset']
+        ).map(
+            style_asset_column,
+            subset=['Asset']
+        )
+        
+        # Display the styled table
+        st.dataframe(
+            styled_table,
+            use_container_width=True,
+            height=min(500, (len(display_df) + 1) * 45 + 50)  # Increased height for bigger cells
+        )
+        
+        # Add explanation
+        st.markdown("""
+        **📖 How to read this table:**
+        - Each cell shows the Compound Annual Growth Rate (CAGR) for the specified period
+        - ⭐ indicates the **1st place** (best performing asset) for that time period
+        - ★ indicates the **2nd place** performer for that time period
+        - 🟢 Green cells indicate positive returns
+        - 🔴 Red cells indicate negative returns
+        - Empty cells mean insufficient data for that period
+        - Click column headers to sort
+        """)
+        
+    else:
+        st.warning("No CAGR data available for selected assets and date range.")
+        
+except Exception as e:
+    st.error(f"Error calculating CAGR table: {e}")
+    import traceback
+    st.error(traceback.format_exc())
 
 # Additional charts row
 st.subheader("📊 Additional Analysis")

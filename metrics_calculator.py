@@ -228,6 +228,87 @@ class MetricsCalculator:
         """Calculate correlation matrix between assets"""
         return returns_data.corr()
 
+    def calculate_cagr_table(self, asset_codes, end_date=None):
+        """
+        Calculate CAGR table for multiple time periods (1-15 years) up to a specific end date.
+        
+        Args:
+            asset_codes: List of asset codes to analyze
+            end_date: End date for CAGR calculation (defaults to latest available date)
+            
+        Returns:
+            DataFrame with assets as rows and time periods as columns
+        """
+        price_data, _ = self.get_returns_data(asset_codes)
+        
+        if price_data.empty:
+            return pd.DataFrame()
+        
+        # Use latest date if end_date not specified
+        if end_date is None:
+            end_date = price_data.index.max()
+        else:
+            # Convert to pandas datetime if needed
+            if not isinstance(end_date, pd.Timestamp):
+                end_date = pd.to_datetime(end_date)
+        
+        # Filter data up to end_date
+        price_data = price_data[price_data.index <= end_date]
+        
+        if price_data.empty:
+            return pd.DataFrame()
+        
+        # Time periods to calculate (1-15 years)
+        periods = list(range(1, 16))
+        
+        # Initialize results dictionary
+        results = {asset: {} for asset in asset_codes}
+        
+        for asset in asset_codes:
+            prices = price_data[asset].dropna()
+            
+            if len(prices) == 0:
+                continue
+            
+            # Get the end price (closest to end_date)
+            end_price = prices.iloc[-1]
+            actual_end_date = prices.index[-1]
+            
+            for years in periods:
+                # Calculate start date for this period
+                target_start_date = actual_end_date - timedelta(days=years*365)
+                
+                # Find the closest start price
+                start_prices = prices[prices.index <= target_start_date]
+                
+                if len(start_prices) == 0:
+                    # Not enough data for this period
+                    results[asset][f'{years}Y'] = None
+                    continue
+                
+                start_price = start_prices.iloc[-1]
+                actual_start_date = start_prices.index[-1]
+                
+                # Calculate actual time difference in years
+                actual_years = (actual_end_date - actual_start_date).days / 365.25
+                
+                # Only calculate if we have at least 90% of the required period
+                if actual_years < years * 0.9:
+                    results[asset][f'{years}Y'] = None
+                else:
+                    # Calculate CAGR
+                    cagr = ((end_price / start_price) ** (1/actual_years)) - 1
+                    results[asset][f'{years}Y'] = cagr * 100  # Convert to percentage
+        
+        # Convert to DataFrame
+        df = pd.DataFrame(results).T
+        
+        # Reorder columns to be 1Y, 2Y, 3Y, etc.
+        column_order = [f'{i}Y' for i in periods]
+        df = df[column_order]
+        
+        return df
+
     def get_performance_summary(self, asset_codes, periods=['3Y', '5Y', 'Inception']):
         """Get comprehensive performance summary"""
         price_data, returns_data = self.get_returns_data(asset_codes)

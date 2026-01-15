@@ -43,9 +43,12 @@ st.markdown("View and filter historical price data for all assets")
 # Load available assets
 try:
     assets_df = processor.get_asset_list()
-    fund_assets = sorted(assets_df[assets_df['asset_type'] == 'fund']['asset_code'].tolist())
-    etf_assets = sorted(assets_df[assets_df['asset_type'] == 'etf']['asset_code'].tolist())
-    benchmark_assets = sorted(assets_df[assets_df['asset_type'] == 'benchmark']['asset_code'].tolist())
+    fund_assets = sorted(assets_df[assets_df['asset_type'] == 'vn_fund']['asset_code'].tolist())
+    etf_assets = sorted(assets_df[assets_df['asset_type'] == 'us_etf']['asset_code'].tolist())
+    benchmark_assets = sorted(assets_df[assets_df['asset_type'].isin(['benchmark', 'vn_index'])]['asset_code'].tolist())
+    stock_assets = sorted(assets_df[assets_df['asset_type'] == 'us_stock']['asset_code'].tolist())
+    crypto_assets = sorted(assets_df[assets_df['asset_type'] == 'crypto']['asset_code'].tolist())
+    commodity_assets = sorted(assets_df[assets_df['asset_type'] == 'commodity']['asset_code'].tolist())
 
     # Create organized list with clear labels
     organized_options = []
@@ -53,8 +56,14 @@ try:
         organized_options.extend([f"📈 {asset} (Fund)" for asset in fund_assets])
     if etf_assets:
         organized_options.extend([f"🏛️ {asset} (ETF)" for asset in etf_assets])
+    if stock_assets:
+        organized_options.extend([f"📊 {asset} (Stock)" for asset in stock_assets])
+    if crypto_assets:
+        organized_options.extend([f"₿ {asset} (Crypto)" for asset in crypto_assets])
+    if commodity_assets:
+        organized_options.extend([f"🥇 {asset} (Commodity)" for asset in commodity_assets])
     if benchmark_assets:
-        organized_options.extend([f"📊 {asset} (Benchmark)" for asset in benchmark_assets])
+        organized_options.extend([f"📉 {asset} (Benchmark)" for asset in benchmark_assets])
 
     # Create mapping from display names to asset codes
     display_to_asset = {}
@@ -64,11 +73,20 @@ try:
     for asset in etf_assets:
         display_name = f"🏛️ {asset} (ETF)"
         display_to_asset[display_name] = asset
+    for asset in stock_assets:
+        display_name = f"📊 {asset} (Stock)"
+        display_to_asset[display_name] = asset
+    for asset in crypto_assets:
+        display_name = f"₿ {asset} (Crypto)"
+        display_to_asset[display_name] = asset
+    for asset in commodity_assets:
+        display_name = f"🥇 {asset} (Commodity)"
+        display_to_asset[display_name] = asset
     for asset in benchmark_assets:
-        display_name = f"📊 {asset} (Benchmark)"
+        display_name = f"📉 {asset} (Benchmark)"
         display_to_asset[display_name] = asset
 
-    all_assets = fund_assets + etf_assets + benchmark_assets
+    all_assets = fund_assets + etf_assets + stock_assets + crypto_assets + commodity_assets + benchmark_assets
 except Exception as e:
     st.error("Database not found. Please run data_processor.py first to load data.")
     st.stop()
@@ -82,11 +100,28 @@ if st.sidebar.button("🏠 Back to Dashboard", help="Return to main dashboard"):
 
 # Asset selection (removed asset type filter)
 st.sidebar.subheader("Asset Selection")
+
+# Determine default value - only set on initial load
+if 'selected_display_assets' in st.session_state and st.session_state.selected_display_assets is not None:
+    # Widget already has a value, use it (prevents reset on rerun)
+    default_display_assets = st.session_state.selected_display_assets
+else:
+    # Initial default: first 5 assets
+    default_display_assets = organized_options[:5] if len(organized_options) >= 5 else organized_options
+
+# Callback function to handle asset selection changes
+def on_display_assets_change():
+    """Update session state when assets are selected"""
+    # No additional processing needed, just let the widget update
+    pass
+
 selected_display_assets = st.sidebar.multiselect(
     "📋 **Available Assets:**",
     options=organized_options,
-    default=organized_options[:5] if len(organized_options) >= 5 else organized_options,
-    help="📈 Funds | 🏛️ ETFs | 📊 Benchmarks"
+    default=default_display_assets,
+    help="📈 Funds | 🏛️ ETFs | 📊 Benchmarks",
+    key="selected_display_assets",
+    on_change=on_display_assets_change
 )
 
 # Convert back to asset codes for processing
@@ -174,11 +209,27 @@ if start_date > end_date:
 
 # Analysis settings
 st.sidebar.subheader("📊 Analysis Settings")
+
+# Determine default value - only set on initial load
+if 'analysis_periods' in st.session_state and st.session_state.analysis_periods is not None:
+    # Widget already has a value, use it (prevents reset on rerun)
+    default_periods = st.session_state.analysis_periods
+else:
+    # Initial default
+    default_periods = ['1Y', '3Y']
+
+# Callback function
+def on_analysis_periods_change():
+    """Update session state when periods are selected"""
+    pass
+
 analysis_periods = st.sidebar.multiselect(
     "Performance Periods:",
     options=['1Y', '3Y', '5Y', 'Inception'],
-    default=['1Y', '3Y'],
-    help="Select time periods for performance comparison"
+    default=default_periods,
+    help="Select time periods for performance comparison",
+    key="analysis_periods",
+    on_change=on_analysis_periods_change
 )
 
 rolling_period = st.sidebar.selectbox(
