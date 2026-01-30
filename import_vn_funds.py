@@ -19,7 +19,17 @@ VN_FUND_PRODUCT_IDS = {
     'vcamdf': 75,
     'vcbfbcf': 32,
     'vcbftbf': 31,
-    'vemeef': 68
+    'vemeef': 68,
+    'mafeqi': 72,
+    'bvfed': 12,
+    'kdef': 86,
+    'bvpf': 14,
+    'enf': 81,
+    'vcbfmgf': 46,
+    'vlgf': 49,
+    'mbvf': 47,
+    'veof': 20,
+    'vdef': 80
 }
 
 # Vietnamese index tickers (Simplize API)
