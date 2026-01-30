@@ -9,27 +9,27 @@ import time
 
 # Vietnamese fund asset code to product ID mapping (fmarket API)
 VN_FUND_PRODUCT_IDS = {
-    'vesaf': 23,
-    'dcbf': 27,
-    'dcde': 25,
-    'dcds': 28,
-    'magef': 35,
-    'ssisca': 11,
-    'uveef': 58,
-    'vcamdf': 75,
-    'vcbfbcf': 32,
-    'vcbftbf': 31,
-    'vemeef': 68,
-    'mafeqi': 72,
-    'bvfed': 12,
-    'kdef': 86,
-    'bvpf': 14,
-    'enf': 81,
-    'vcbfmgf': 46,
-    'vlgf': 49,
-    'mbvf': 47,
-    'veof': 20,
-    'vdef': 80
+    'vesaf': 23,  # Vina Capital, cổ phiếu
+    'dcbf': 27,  # Dragon Capital, trái phiếu
+    'dcde': 25,  # Dragon Capital, cổ phiếu
+    'dcds': 28,  # Dragon Capital, cổ phiếu
+    'magef': 35,  # Mirae Asset, cổ phiếu
+    'ssisca': 11,  # Công ty Cổ Phần Chứng Khoán SSI, cổ phiếu
+    'uveef': 58,  # UOBAM VIETNAM, cổ phiếu
+    'vcamdf': 75,  # Viet Capital Asset Management, cổ phiếu
+    'vcbfbcf': 32,  # Vietcombank, cổ phiếu
+    'vcbftbf': 31,  # Vietcombank, cân bằng
+    'vemeef': 68,  # Vina Capital, cổ phiếu
+    'mafeqi': 72,  # Quỹ đầu tư cân bằng Manulife, cổ phiếu
+    'bvfed': 12,  # Công ty TNHH Quản lý Quỹ Bảo Việt, cổ phiếu
+    'kdef': 86,  # Cty TNHH Quản lý quỹ Kim Việt Nam, cổ phiếu
+    'bvpf': 14,  # Công ty TNHH Quản lý Quỹ Bảo Việt, cổ phiếu
+    'enf': 81,  # Quỹ đầu tư năng động Eastspring Investments Việt Nam, cân bằng
+    'vcbfmgf': 46,  # Vietcombank, cổ phiếu
+    'vlgf': 49,  # Công ty Cổ Phần Chứng Khoán SSI, cổ phiếu
+    'mbvf': 47,  # Quỹ đầu tư giá trị MB Capital, cổ phiếu
+    'veof': 20,  # Vina Capital, cổ phiếu
+    'vdef': 80  # Vina Capital, cổ phiếu
 }
 
 # Vietnamese index tickers (Simplize API)

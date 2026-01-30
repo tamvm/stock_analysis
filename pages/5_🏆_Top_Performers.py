@@ -95,9 +95,10 @@ def get_asset_color(asset_code, index=0):
 def calculate_yearly_returns(db_path="db/investment_data.db"):
     """
     Calculate yearly returns for all assets from start to end of each year.
+    Also calculates max drawdown within each year.
     
     Returns:
-        DataFrame with columns: year, asset_code, yearly_return, asset_type
+        DataFrame with columns: year, asset_code, yearly_return, max_drawdown, asset_type
     """
     conn = sqlite3.connect(db_path)
     
@@ -120,7 +121,7 @@ def calculate_yearly_returns(db_path="db/investment_data.db"):
     df['date'] = pd.to_datetime(df['date'])
     df['year'] = df['date'].dt.year
     
-    # Calculate yearly returns
+    # Calculate yearly returns and max drawdown
     yearly_returns = []
     
     for asset in df['asset_code'].unique():
@@ -140,11 +141,18 @@ def calculate_yearly_returns(db_path="db/investment_data.db"):
             # Calculate return
             yearly_return = ((end_price - start_price) / start_price) * 100
             
+            # Calculate max drawdown within the year
+            prices = year_data['price'].values
+            cummax = np.maximum.accumulate(prices)
+            drawdowns = (prices - cummax) / cummax * 100
+            max_drawdown = drawdowns.min()  # Most negative value
+            
             yearly_returns.append({
                 'year': year,
                 'asset_code': asset,
                 'asset_type': asset_type,
                 'yearly_return': yearly_return,
+                'max_drawdown': max_drawdown,
                 'start_date': year_data.iloc[0]['date'],
                 'end_date': year_data.iloc[-1]['date'],
                 'start_price': start_price,
@@ -202,6 +210,23 @@ conn.close()
 
 available_types = available_types_df['asset_type'].tolist()
 
+# Get URL query parameters
+query_params = st.query_params
+
+# Parse selected types from URL or use defaults
+url_selected_types = query_params.get("types", "").split(",") if query_params.get("types") else None
+default_types = url_selected_types if url_selected_types else ['vn_fund']
+
+# Parse include_vnindex from URL or use default
+url_include_vnindex = query_params.get("vnindex", "true").lower() == "true"
+
+# Parse top_n from URL or use default
+url_top_n = int(query_params.get("top_n", "3"))
+
+# Parse year range from URL or use defaults (will be set after loading data)
+url_year_start = query_params.get("year_start")
+url_year_end = query_params.get("year_end")
+
 # Asset type checkboxes
 st.sidebar.subheader("📊 Asset Types")
 st.sidebar.markdown("*Select asset types to include in analysis*")
@@ -219,9 +244,6 @@ asset_type_labels = {
     'benchmark': '📊 Benchmarks'
 }
 
-# Default to vn_fund
-default_types = ['vn_fund']
-
 for asset_type in available_types:
     label = asset_type_labels.get(asset_type, asset_type.replace('_', ' ').title())
     is_default = asset_type in default_types
@@ -232,7 +254,7 @@ for asset_type in available_types:
 # Always include VNINDEX as reference if vn_index is available
 include_vnindex = st.sidebar.checkbox(
     "📌 Always show VNINDEX as reference",
-    value=True,
+    value=url_include_vnindex,
     help="VNINDEX will always appear at the bottom as a benchmark"
 )
 
@@ -245,7 +267,7 @@ top_n = st.sidebar.slider(
     "Number of top performers per year",
     min_value=1,
     max_value=10,
-    value=3,
+    value=url_top_n,
     help="Select how many top performers to show for each year"
 )
 
@@ -261,11 +283,17 @@ if not all_yearly_returns.empty:
     min_year = int(min(available_years))
     max_year = int(max(available_years))
     
+    # Use URL params for year range if available
+    if url_year_start and url_year_end:
+        default_year_range = (int(url_year_start), int(url_year_end))
+    else:
+        default_year_range = (min_year, max_year)
+    
     year_range = st.sidebar.slider(
         "Select year range",
         min_value=min_year,
         max_value=max_year,
-        value=(min_year, max_year),
+        value=default_year_range,
         help="Filter the analysis to specific years"
     )
     
@@ -274,6 +302,20 @@ if not all_yearly_returns.empty:
         (all_yearly_returns['year'] >= year_range[0]) & 
         (all_yearly_returns['year'] <= year_range[1])
     ].copy()
+    
+    # Update URL query parameters when filters change
+    new_query_params = {
+        "types": ",".join(selected_types),
+        "vnindex": str(include_vnindex).lower(),
+        "top_n": str(top_n),
+        "year_start": str(year_range[0]),
+        "year_end": str(year_range[1])
+    }
+    
+    # Only update if params have changed
+    current_params = dict(st.query_params)
+    if current_params != new_query_params:
+        st.query_params.update(new_query_params)
 else:
     st.error("No data available. Please import data first.")
     st.stop()
@@ -393,6 +435,13 @@ html_content = """
 
 .top-performers-table .return-value {
     font-size: 11px;
+    margin-bottom: 1px;
+}
+
+.top-performers-table .drawdown-value {
+    font-size: 9px;
+    color: #374151;
+    font-weight: normal;
 }
 </style>
 
@@ -439,6 +488,7 @@ for rank in range(1, top_n + 1):
             asset_code = row['asset_code']
             asset_type = row['asset_type']
             yearly_return = row['yearly_return']
+            max_drawdown = row['max_drawdown']
             color = get_asset_color(asset_code, rank)
             start_date = row['start_date'].strftime('%d/%m/%Y')
             end_date = row['end_date'].strftime('%d/%m/%Y')
@@ -476,17 +526,19 @@ for rank in range(1, top_n + 1):
             # For other asset types, the asset type border takes precedence
             if asset_type == 'vn_fund':
                 html_content += f"""
-                <td class="{border_class}" style="{style}" title="{asset_code} ({asset_type}): {yearly_return:.1f}% ({start_date} - {end_date})">
+                <td class="{border_class}" style="{style}" title="{asset_code} ({asset_type}): {yearly_return:.1f}% | Max DD: {max_drawdown:.1f}% ({start_date} - {end_date})">
                     <div class="asset-code">{asset_code}</div>
                     <div class="return-value">{yearly_return:+.1f}%</div>
+                    <div class="drawdown-value">DD: {max_drawdown:.1f}%</div>
                 </td>
                 """
             else:
                 # For non-VN funds, show asset type border instead
                 html_content += f"""
-                <td style="{style}" title="{asset_code} ({asset_type}): {yearly_return:.1f}% ({start_date} - {end_date})">
+                <td style="{style}" title="{asset_code} ({asset_type}): {yearly_return:.1f}% | Max DD: {max_drawdown:.1f}% ({start_date} - {end_date})">
                     <div class="asset-code">{asset_code}</div>
                     <div class="return-value">{yearly_return:+.1f}%</div>
+                    <div class="drawdown-value">DD: {max_drawdown:.1f}%</div>
                 </td>
                 """
         else:
@@ -531,6 +583,7 @@ st.markdown("""
 - **Purple border**: Crypto
 - **Brown border**: Commodity  
 - **Blue border**: US Stock
+- **DD (Drawdown)**: Maximum drawdown within the year (risk metric)
 """)
 
 # Detailed table

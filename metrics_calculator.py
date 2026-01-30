@@ -157,12 +157,19 @@ class MetricsCalculator:
 
         return annualized_returns
 
-    def calculate_volatility(self, returns_data, annualized=True):
+    def calculate_volatility(self, returns_data, annualized=True, frequency='daily'):
         """Calculate volatility (standard deviation of returns)"""
         volatility = returns_data.std()
 
         if annualized:
-            volatility = volatility * np.sqrt(252)  # 252 trading days in a year
+            if frequency == 'daily':
+                factor = np.sqrt(252)  # 252 trading days in a year
+            elif frequency == 'monthly':
+                factor = np.sqrt(12)   # 12 months in a year
+            else:
+                factor = 1
+            
+            volatility = volatility * factor
 
         return volatility * 100  # Convert to percentage
 
@@ -194,6 +201,93 @@ class MetricsCalculator:
                 sharpe_ratios[asset] = (mean_return - risk_free_rate) / volatility
 
         return pd.Series(sharpe_ratios)
+
+    def get_month_end_returns_data(self, asset_codes, start_date=None, end_date=None):
+        """
+        Get month-end price data and calculate returns for assets.
+        This standardizes the data frequency across all assets to avoid noise
+        from different NAV reporting frequencies.
+        
+        Args:
+            asset_codes: List of asset codes
+            start_date: Optional start date filter
+            end_date: Optional end date filter
+            
+        Returns:
+            Tuple of (price_data, returns_data) DataFrames with month-end data
+        """
+        from data_processor import DataProcessor
+        
+        processor = DataProcessor(self.db_path)
+        df = processor.get_month_end_price_data(asset_codes, start_date, end_date)
+        
+        if df.empty:
+            return pd.DataFrame(), pd.DataFrame()
+        
+        # Pivot to get assets as columns
+        price_data = df.pivot(index='date', columns='asset_code', values='price')
+        
+        # Calculate monthly returns for each asset
+        returns_data = price_data.pct_change(fill_method=None)
+        
+        # Only drop rows where ALL assets are NaN
+        returns_data = returns_data.dropna(how='all')
+        
+        return price_data, returns_data
+
+    def calculate_sharpe_ratio_month_end(self, asset_codes, risk_free_rate=0.02, min_periods=12, 
+                                         start_date=None, end_date=None):
+        """
+        Calculate Sharpe ratio using month-end data for standardization.
+        
+        This method addresses the issue where different assets have different numbers
+        of NAV data points, which creates noise in the Sharpe ratio calculation.
+        By using month-end data, we ensure:
+        1. All assets are compared on the same frequency (monthly)
+        2. The calculation is less affected by different reporting schedules
+        3. Results are more stable and comparable across assets
+        
+        Args:
+            asset_codes: List of asset codes
+            risk_free_rate: Annual risk-free rate (default 2%)
+            min_periods: Minimum number of months required (default 12 months)
+            start_date: Optional start date filter
+            end_date: Optional end date filter
+            
+        Returns:
+            pd.Series: Sharpe ratios for each asset
+        """
+        _, returns_data = self.get_month_end_returns_data(asset_codes, start_date, end_date)
+        
+        if returns_data.empty:
+            return pd.Series({asset: np.nan for asset in asset_codes})
+        
+        sharpe_ratios = {}
+        
+        for asset in asset_codes:
+            if asset not in returns_data.columns:
+                sharpe_ratios[asset] = np.nan
+                continue
+                
+            asset_returns = returns_data[asset].dropna()
+            
+            # Require minimum data points for reliable calculation
+            if len(asset_returns) < min_periods:
+                sharpe_ratios[asset] = np.nan
+                continue
+            
+            # Calculate annualized returns and volatility from monthly data
+            # Monthly returns need to be annualized by multiplying by 12 (not 252)
+            mean_return = asset_returns.mean() * 12  # Annualized from monthly (decimal form)
+            volatility = asset_returns.std() * np.sqrt(12)  # Annualized from monthly (decimal form)
+            
+            if volatility == 0:
+                sharpe_ratios[asset] = np.nan
+            else:
+                sharpe_ratios[asset] = (mean_return - risk_free_rate) / volatility
+        
+        return pd.Series(sharpe_ratios)
+
 
     def calculate_maximum_drawdown(self, price_data):
         """Calculate maximum drawdown for each asset"""
@@ -317,19 +411,67 @@ class MetricsCalculator:
         current_date = price_data.index.max()
 
         for period in periods:
+            # Determine start date based on period
             if period == 'Inception':
                 start_date = None
-                period_returns = returns_data
             else:
                 years = int(period[0])
                 start_date = current_date - timedelta(days=years*365)
-                period_returns = returns_data[returns_data.index >= start_date]
-
+            
+            # IMPORTANT: Process each asset INDEPENDENTLY to avoid data loss
+            # When multiple assets have different date ranges, combining them
+            # can result in missing data for assets with longer histories
+            
+            total_returns = {}
+            annualized_returns = {}
+            volatilities = {}
+            sharpe_ratios = {}
+            risk_free_rate = 0.02
+            
+            for asset in asset_codes:
+                # Get month-end data for THIS asset only
+                me_price_data, me_returns_data = self.get_month_end_returns_data(
+                    [asset],  # Single asset
+                    start_date=start_date, 
+                    end_date=current_date
+                )
+                
+                # Calculate metrics for this asset
+                if not me_price_data.empty:
+                    # Total return
+                    total_ret = self.calculate_total_return(me_price_data)
+                    if asset in total_ret:
+                        total_returns[asset] = total_ret[asset]
+                    
+                    # Annualized return
+                    ann_ret = self.calculate_annualized_return(me_price_data)
+                    if asset in ann_ret:
+                        annualized_returns[asset] = ann_ret[asset]
+                
+                if not me_returns_data.empty and asset in me_returns_data.columns:
+                    # Volatility
+                    vol_series = self.calculate_volatility(me_returns_data[[asset]], frequency='monthly')
+                    if asset in vol_series.index:
+                        volatilities[asset] = vol_series[asset]
+                    
+                    # Sharpe ratio
+                    asset_returns = me_returns_data[asset].dropna()
+                    if len(asset_returns) >= 2:
+                        mean_return = asset_returns.mean() * 12
+                        vol = asset_returns.std() * np.sqrt(12)
+                        
+                        if vol > 0:
+                            sharpe_ratios[asset] = (mean_return - risk_free_rate) / vol
+                        else:
+                            sharpe_ratios[asset] = np.nan
+                    else:
+                        sharpe_ratios[asset] = np.nan
+            
             period_summary = {
-                'total_return': self.calculate_total_return(price_data, start_date),
-                'annualized_return': self.calculate_annualized_return(price_data, start_date),
-                'volatility': self.calculate_volatility(period_returns).to_dict(),
-                'sharpe_ratio': self.calculate_sharpe_ratio(period_returns).to_dict()
+                'total_return': total_returns,
+                'annualized_return': annualized_returns,
+                'volatility': volatilities,
+                'sharpe_ratio': sharpe_ratios
             }
             summary[period] = period_summary
 

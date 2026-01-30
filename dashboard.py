@@ -37,8 +37,16 @@ CHART_COLORS = [
 ]
 
 # Initialize processors
+# Version tag: increment this to force cache refresh when calculation logic changes
+METRICS_VERSION = "v3.0_independent_asset_processing"
+
 @st.cache_resource
-def init_processors():
+def init_processors(_version=METRICS_VERSION):
+    """Initialize data processor and metrics calculator
+    
+    Args:
+        _version: Version tag to force cache invalidation (prefix with _ to exclude from hash)
+    """
     return DataProcessor(), MetricsCalculator()
 
 processor, calc = init_processors()
@@ -162,14 +170,46 @@ except:
     st.error("Database not found. Please run data_processor.py first to load data.")
     st.stop()
 
-# Get URL query parameters for asset selection
+# Get URL query parameters for all filters
 query_params = st.query_params
 url_assets = query_params.get('assets', None)
+url_rolling_years = query_params.get('rolling_years', None)
+url_analysis_periods = query_params.get('periods', None)
+url_start_date = query_params.get('start_date', None)
+url_end_date = query_params.get('end_date', None)
 
 # Parse URL assets if present (comma-separated)
 url_selected_assets = []
 if url_assets:
     url_selected_assets = [asset.strip() for asset in url_assets.split(',') if asset.strip() in all_assets]
+
+# Parse URL rolling years
+url_rolling_years_value = None
+if url_rolling_years:
+    try:
+        url_rolling_years_value = int(url_rolling_years)
+    except (ValueError, TypeError):
+        url_rolling_years_value = None
+
+# Parse URL analysis periods (comma-separated)
+url_analysis_periods_list = []
+if url_analysis_periods:
+    url_analysis_periods_list = [period.strip() for period in url_analysis_periods.split(',') if period.strip() in ['1Y', '3Y', '5Y', 'Inception']]
+
+# Parse URL dates (format: YYYY-MM-DD)
+url_start_date_value = None
+url_end_date_value = None
+if url_start_date:
+    try:
+        url_start_date_value = datetime.strptime(url_start_date, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        url_start_date_value = None
+
+if url_end_date:
+    try:
+        url_end_date_value = datetime.strptime(url_end_date, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        url_end_date_value = None
 
 # Handle localStorage settings for asset selection
 if 'saved_selected_assets' not in st.session_state:
@@ -297,6 +337,47 @@ def on_assets_change():
         if 'assets' in st.query_params:
             del st.query_params['assets']
 
+# Callback function to handle rolling years changes
+def on_rolling_years_change():
+    """Update session state and URL parameters when rolling years is changed"""
+    rolling_years = st.session_state.rolling_years_selectbox
+    st.session_state.rolling_years_ls = rolling_years
+    st.query_params['rolling_years'] = str(rolling_years)
+
+# Callback function to handle analysis periods changes
+def on_analysis_periods_change():
+    """Update session state and URL parameters when analysis periods are changed"""
+    periods = st.session_state.analysis_periods_multiselect
+    st.session_state.analysis_periods_ls = periods
+    
+    if periods:
+        st.query_params['periods'] = ','.join(periods)
+    else:
+        if 'periods' in st.query_params:
+            del st.query_params['periods']
+
+# Callback function to handle date changes
+def on_date_change():
+    """Update session state and URL parameters when dates are changed"""
+    start = st.session_state.start_date
+    end = st.session_state.end_date
+    
+    st.session_state.start_date_ls = start
+    st.session_state.end_date_ls = end
+    
+    # Update URL parameters
+    if start:
+        st.query_params['start_date'] = start.strftime('%Y-%m-%d')
+    else:
+        if 'start_date' in st.query_params:
+            del st.query_params['start_date']
+    
+    if end:
+        st.query_params['end_date'] = end.strftime('%Y-%m-%d')
+    else:
+        if 'end_date' in st.query_params:
+            del st.query_params['end_date']
+
 # Asset selection
 st.sidebar.subheader("Select Assets to Compare")
 selected_assets = st.sidebar.multiselect(
@@ -340,13 +421,19 @@ if st.sidebar.button("📋 View All Assets", use_container_width=True):
     st.switch_page("pages/4_📋_Assets_List.py")
 
 
-# Handle localStorage settings for rolling years
+# Handle URL parameters and localStorage settings for rolling years
+# Priority: 1) URL parameter, 2) localStorage
 saved_rolling_years = loaded_settings.get('rolling_years', 4)
 rolling_years_options = [1, 2, 3, 4, 5]
 
-# Find the index of saved value, default to 2 (4 years) if not found
+# Determine default rolling years
+default_rolling_years = saved_rolling_years
+if url_rolling_years_value is not None and url_rolling_years_value in rolling_years_options:
+    default_rolling_years = url_rolling_years_value
+
+# Find the index of default value, default to 2 (4 years) if not found
 try:
-    rolling_years_index = rolling_years_options.index(saved_rolling_years)
+    rolling_years_index = rolling_years_options.index(default_rolling_years)
 except ValueError:
     rolling_years_index = 2  # Default to 4 years
 
@@ -357,27 +444,35 @@ rolling_years = st.sidebar.selectbox(
     options=rolling_years_options,
     index=rolling_years_index,
     help="Select the rolling period for CAGR calculation",
-    key="rolling_years_selectbox"
+    key="rolling_years_selectbox",
+    on_change=on_rolling_years_change
 )
 
 # Update session state for localStorage saving
 st.session_state.rolling_years_ls = rolling_years
 
-# Handle localStorage settings for analysis periods
+# Handle URL parameters and localStorage settings for analysis periods
+# Priority: 1) URL parameter, 2) localStorage
 saved_analysis_periods = loaded_settings.get('analysis_periods', ['1Y', '3Y', '5Y'])
 analysis_options = ['1Y', '3Y', '5Y', 'Inception']
 
-# Filter saved periods to only include valid ones
-valid_saved_periods = [period for period in saved_analysis_periods if period in analysis_options]
+# Determine default analysis periods
+default_analysis_periods = saved_analysis_periods
+if url_analysis_periods_list:
+    default_analysis_periods = url_analysis_periods_list
+
+# Filter default periods to only include valid ones
+valid_default_periods = [period for period in default_analysis_periods if period in analysis_options]
 
 # Performance period selector
 st.sidebar.subheader("Performance Analysis")
 analysis_periods = st.sidebar.multiselect(
     "Analysis Periods:",
     options=analysis_options,
-    default=valid_saved_periods if valid_saved_periods else ['1Y', '3Y', '5Y'],
+    default=valid_default_periods if valid_default_periods else ['1Y', '3Y', '5Y'],
     help="Select time periods for performance comparison",
-    key="analysis_periods_multiselect"
+    key="analysis_periods_multiselect",
+    on_change=on_analysis_periods_change
 )
 
 # Update session state for localStorage saving
@@ -402,6 +497,11 @@ with col1:
                 # Update widget state directly
                 st.session_state.start_date = earliest_date
                 st.session_state.end_date = latest_date
+                
+                # Update URL parameters
+                st.query_params['start_date'] = earliest_date.strftime('%Y-%m-%d')
+                st.query_params['end_date'] = latest_date.strftime('%Y-%m-%d')
+                
                 st.rerun()
         except Exception as e:
             st.sidebar.error(f"Error setting max inception range: {e}")
@@ -423,11 +523,17 @@ with col2:
                 # Update widget state directly
                 st.session_state.start_date = latest_inception_date
                 st.session_state.end_date = latest_date
+                
+                # Update URL parameters
+                st.query_params['start_date'] = latest_inception_date.strftime('%Y-%m-%d')
+                st.query_params['end_date'] = latest_date.strftime('%Y-%m-%d')
+                
                 st.rerun()
         except Exception as e:
             st.sidebar.error(f"Error setting min inception range: {e}")
 
-# Handle localStorage settings for date range
+# Handle URL parameters and localStorage settings for date range
+# Priority: 1) URL parameter, 2) localStorage
 saved_start_date = loaded_settings.get('start_date', '')
 saved_end_date = loaded_settings.get('end_date', '')
 
@@ -435,13 +541,18 @@ saved_end_date = loaded_settings.get('end_date', '')
 start_date_value = None
 end_date_value = None
 
-if saved_start_date:
+# Use URL parameters if available, otherwise use localStorage
+if url_start_date_value is not None:
+    start_date_value = url_start_date_value
+elif saved_start_date:
     try:
         start_date_value = datetime.strptime(saved_start_date, '%d/%m/%Y').date()
     except (ValueError, TypeError):
         start_date_value = None
 
-if saved_end_date:
+if url_end_date_value is not None:
+    end_date_value = url_end_date_value
+elif saved_end_date:
     try:
         end_date_value = datetime.strptime(saved_end_date, '%d/%m/%Y').date()
     except (ValueError, TypeError):
@@ -452,13 +563,19 @@ with col1:
     start_date = st.date_input(
         "Start Date",
         value=start_date_value,
-        key="start_date"
+        min_value=datetime(2000, 1, 1).date(),
+        max_value=datetime.today().date(),
+        key="start_date",
+        on_change=on_date_change
     )
 with col2:
     end_date = st.date_input(
         "End Date",
         value=end_date_value,
-        key="end_date"
+        min_value=datetime(2000, 1, 1).date(),
+        max_value=datetime.today().date(),
+        key="end_date",
+        on_change=on_date_change
     )
 
 # Update session state for localStorage saving
@@ -553,10 +670,51 @@ try:
     rolling_cagr = calc.calculate_rolling_cagr(price_data, years=rolling_years)
 
     if not rolling_cagr.empty:
+        # Calculate a smart ranking that only compares assets when they both have data
+        # This gives a weighted average rank for each asset
+        asset_weighted_rank = {}
+        
+        for asset in rolling_cagr.columns:
+            asset_data = rolling_cagr[asset].dropna()
+            
+            if len(asset_data) > 0:
+                total_weighted_rank = 0
+                total_weight = 0
+                
+                # For each date where this asset has data
+                for date in asset_data.index:
+                    # Get all assets that have data at this date
+                    values_at_date = rolling_cagr.loc[date].dropna()
+                    
+                    if len(values_at_date) >= 2:  # Need at least 2 assets to compare
+                        # Calculate rank at this date (1 = highest CAGR, n = lowest)
+                        asset_value = values_at_date[asset]
+                        rank = (values_at_date > asset_value).sum() + 1
+                        
+                        # Weight by number of assets being compared (more assets = more meaningful)
+                        weight = len(values_at_date)
+                        total_weighted_rank += rank * weight
+                        total_weight += weight
+                
+                # Calculate weighted average rank (lower is better)
+                if total_weight > 0:
+                    asset_weighted_rank[asset] = total_weighted_rank / total_weight
+                else:
+                    asset_weighted_rank[asset] = float('inf')
+            else:
+                asset_weighted_rank[asset] = float('inf')  # No data
+        
+        # Sort assets by weighted average rank (lower = better = appears first)
+        sorted_assets = sorted(asset_weighted_rank.keys(), key=lambda x: asset_weighted_rank[x])
+        
+        # Create the chart with sorted traces
         fig_cagr = go.Figure()
-
-        for i, asset in enumerate(rolling_cagr.columns):
+        
+        for asset in sorted_assets:
+            # Find the original index for color consistency
+            original_index = list(rolling_cagr.columns).index(asset)
             data = rolling_cagr[asset].dropna()
+            
             if len(data) > 0:
                 # Create custom hover text with From/To dates
                 hover_text = []
@@ -573,7 +731,7 @@ try:
                     y=data.values,
                     mode='lines',
                     name=asset,
-                    line=dict(color=CHART_COLORS[i % len(CHART_COLORS)], width=3),
+                    line=dict(color=CHART_COLORS[original_index % len(CHART_COLORS)], width=3),
                     hovertemplate='%{hovertext}<extra></extra>',
                     hovertext=hover_text
                 ))
@@ -611,7 +769,8 @@ try:
             # For each time period, find which asset had the best and worst CAGR
             rolling_cagr_clean = rolling_cagr.dropna(how='all')
 
-            for asset in rolling_cagr.columns:
+            # Use the same sorted order as the chart
+            for asset in sorted_assets:
                 best_count = 0
                 worst_count = 0
                 total_comparisons = 0
@@ -655,7 +814,9 @@ try:
         with col2:
             st.markdown("**📈 Rolling CAGR Summary**")
             total_stats = []
-            for asset in rolling_cagr.columns:
+            
+            # Use the same sorted order as the chart
+            for asset in sorted_assets:
                 data = rolling_cagr[asset].dropna()
                 if len(data) > 0:
                     min_cagr = data.min()
@@ -677,7 +838,9 @@ try:
         with col3:
             st.markdown("**📊 Central Tendency**")
             central_stats = []
-            for asset in rolling_cagr.columns:
+            
+            # Use the same sorted order as the chart
+            for asset in sorted_assets:
                 data = rolling_cagr[asset].dropna()
                 if len(data) > 0:
                     median_cagr = data.median()

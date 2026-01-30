@@ -280,6 +280,62 @@ class DataProcessor:
                 df['date'] = dates
         return df
 
+    def get_month_end_price_data(self, asset_codes, start_date=None, end_date=None):
+        """
+        Get month-end price data for specified assets.
+        This is used for standardized Sharpe ratio calculations to avoid noise
+        from different data point frequencies across assets.
+        
+        Args:
+            asset_codes: List of asset codes
+            start_date: Optional start date filter
+            end_date: Optional end date filter
+            
+        Returns:
+            DataFrame with month-end prices for each asset
+        """
+        # Convert Timestamp to string if needed (for SQL query compatibility)
+        if start_date is not None and hasattr(start_date, 'strftime'):
+            start_date = start_date.strftime('%Y-%m-%d')
+        if end_date is not None and hasattr(end_date, 'strftime'):
+            end_date = end_date.strftime('%Y-%m-%d')
+        
+        # First get all price data
+        df = self.get_price_data(asset_codes, start_date, end_date)
+        
+        if df.empty:
+            return df
+        
+        # Ensure date is datetime
+        df['date'] = pd.to_datetime(df['date'])
+        
+        # Add year-month column for grouping
+        df['year_month'] = df['date'].dt.to_period('M')
+        
+        # For each asset and month, get the last available price
+        month_end_data = []
+        for asset in asset_codes:
+            asset_df = df[df['asset_code'] == asset].copy()
+            if asset_df.empty:
+                continue
+                
+            # Group by month and get the last date's price for each month
+            for period, group in asset_df.groupby('year_month'):
+                # Get the last date in this month for this asset
+                last_date_idx = group['date'].idxmax()
+                month_end_data.append({
+                    'asset_code': asset,
+                    'date': group.loc[last_date_idx, 'date'],
+                    'price': group.loc[last_date_idx, 'price']
+                })
+        
+        result_df = pd.DataFrame(month_end_data)
+        
+        if not result_df.empty:
+            result_df = result_df.sort_values(['asset_code', 'date']).reset_index(drop=True)
+        
+        return result_df
+
 if __name__ == "__main__":
     processor = DataProcessor()
     funds_count, benchmarks_count = processor.save_to_database()
