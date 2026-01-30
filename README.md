@@ -161,6 +161,7 @@ Navigate to `http://localhost:8501`
 ### 📊 Multi-Page Interface
 - **Main Dashboard**: Investment analysis with interactive charts
 - **📚 Metrics Guide**: Comprehensive explanation of all financial metrics with formulas and examples
+- **🏆 Top Performers**: Yearly top 3 assets with highest annual growth, with VNINDEX reference and asset type filtering
 
 ### 🎯 Asset Selection
 - Multi-select dropdown for funds and benchmarks
