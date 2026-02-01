@@ -3,6 +3,11 @@
 ## Overview
 Professional investment analysis and comparison tool for mutual funds, ETFs, and benchmark indices with automated metrics calculation.
 
+## Coding Standards
+
+### Language Requirements
+All code, comments, and database designs MUST use **English** for consistency and maintainability.
+
 ## Technology Stack
 
 ### Backend

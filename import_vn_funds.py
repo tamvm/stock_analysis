@@ -9,27 +9,27 @@ import time
 
 # Vietnamese fund asset code to product ID mapping (fmarket API)
 VN_FUND_PRODUCT_IDS = {
-    'vesaf': 23,  # Vina Capital, cổ phiếu
-    'dcbf': 27,  # Dragon Capital, trái phiếu
-    'dcde': 25,  # Dragon Capital, cổ phiếu
-    'dcds': 28,  # Dragon Capital, cổ phiếu
-    'magef': 35,  # Mirae Asset, cổ phiếu
-    'ssisca': 11,  # Công ty Cổ Phần Chứng Khoán SSI, cổ phiếu
-    'uveef': 58,  # UOBAM VIETNAM, cổ phiếu
-    'vcamdf': 75,  # Viet Capital Asset Management, cổ phiếu
-    'vcbfbcf': 32,  # Vietcombank, cổ phiếu
-    'vcbftbf': 31,  # Vietcombank, cân bằng
-    'vemeef': 68,  # Vina Capital, cổ phiếu
-    'mafeqi': 72,  # Quỹ đầu tư cân bằng Manulife, cổ phiếu
-    'bvfed': 12,  # Công ty TNHH Quản lý Quỹ Bảo Việt, cổ phiếu
-    'kdef': 86,  # Cty TNHH Quản lý quỹ Kim Việt Nam, cổ phiếu
-    'bvpf': 14,  # Công ty TNHH Quản lý Quỹ Bảo Việt, cổ phiếu
-    'enf': 81,  # Quỹ đầu tư năng động Eastspring Investments Việt Nam, cân bằng
-    'vcbfmgf': 46,  # Vietcombank, cổ phiếu
-    'vlgf': 49,  # Công ty Cổ Phần Chứng Khoán SSI, cổ phiếu
-    'mbvf': 47,  # Quỹ đầu tư giá trị MB Capital, cổ phiếu
-    'veof': 20,  # Vina Capital, cổ phiếu
-    'vdef': 80  # Vina Capital, cổ phiếu
+    'vesaf': 23,  # Vina Capital, equity
+    'dcbf': 27,  # Dragon Capital, bond
+    'dcde': 25,  # Dragon Capital, equity
+    'dcds': 28,  # Dragon Capital, equity
+    'magef': 35,  # Mirae Asset, equity
+    'ssisca': 11,  # SSI Securities Corporation, equity
+    'uveef': 58,  # UOBAM VIETNAM, equity
+    'vcamdf': 75,  # Viet Capital Asset Management, equity
+    'vcbfbcf': 32,  # Vietcombank, equity
+    'vcbftbf': 31,  # Vietcombank, balanced
+    'vemeef': 68,  # Vina Capital, equity
+    'mafeqi': 72,  # Manulife Balanced Fund, equity
+    'bvfed': 12,  # Bao Viet Fund Management, equity
+    'kdef': 86,  # Kim Vietnam Fund Management, equity
+    'bvpf': 14,  # Bao Viet Fund Management, equity
+    'enf': 81,  # Eastspring Investments Vietnam Dynamic Fund, balanced
+    'vcbfmgf': 46,  # Vietcombank, equity
+    'vlgf': 49,  # SSI Securities Corporation, equity
+    'mbvf': 47,  # MB Capital Value Fund, equity
+    'veof': 20,  # Vina Capital, equity
+    'vdef': 80  # Vina Capital, equity
 }
 
 # Vietnamese index tickers (Simplize API)

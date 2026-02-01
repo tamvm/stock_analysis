@@ -114,6 +114,26 @@ python import_vn_funds.py vn30
 - `vnindex` - VN-Index (since 2000, 306 monthly records)
 - `vn30` - VN30 Index (since 2012, 167 monthly records)
 
+#### Import VN Fund Metadata (API)
+Use this script to fetch and store detailed fund information including fees, holdings, and sector allocation:
+
+```bash
+# Import metadata for all VN funds - recommended
+python import_vn_fund_metadata.py
+
+# Import metadata for a single fund
+python import_vn_fund_metadata.py dcds
+python import_vn_fund_metadata.py vcbfbcf
+```
+
+**What gets imported:**
+- **Fund Information**: Name, issuer, asset type, total assets, management fees
+- **Fee Structure**: Purchase fees and redemption fees (by holding period)
+- **Top Holdings**: Top 10 stocks/bonds with sector, % allocation, and current prices
+- **Sector Allocation**: Percentage breakdown by industry sector
+
+**Note:** This is separate from NAV/price data import. Run `import_vn_funds.py` for price history and `import_vn_fund_metadata.py` for fund details.
+
 #### Import Cryptocurrencies (Yahoo Finance API)
 Use the dedicated crypto import script to fetch data directly from Yahoo Finance using the yfinance library:
 
