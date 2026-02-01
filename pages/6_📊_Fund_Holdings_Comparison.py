@@ -386,6 +386,208 @@ with col2:
         marker = "✅" if is_common else "📌"
         st.markdown(f"{marker} **{row['stock_code']}**: {row['net_asset_percent']:.2f}%")
 
+# Sector Allocation Comparison
+st.markdown("---")
+st.subheader("🏭 Sector Allocation Comparison")
+st.markdown("**Compare how each fund distributes investments across different industries**")
+
+# Query sector allocation data
+@st.cache_data
+def get_sector_allocation(asset_codes, db_path="db/investment_data.db"):
+    """Get sector allocation data for selected funds"""
+    conn = sqlite3.connect(db_path)
+    
+    placeholders = ','.join(['?' for _ in asset_codes])
+    query = f"""
+        SELECT 
+            asset_code,
+            industry,
+            asset_percent
+        FROM fund_sector_allocation
+        WHERE asset_code IN ({placeholders})
+        ORDER BY asset_code, asset_percent DESC
+    """
+    
+    df = pd.read_sql_query(query, conn, params=asset_codes)
+    conn.close()
+    
+    return df
+
+# Load sector allocation data
+sector_df = get_sector_allocation([fund_a, fund_b])
+
+if not sector_df.empty:
+    # Get all unique sectors from both funds
+    all_sectors = list(dict.fromkeys(
+        sector_df['industry'].unique().tolist()
+    ))
+    
+    # Create sector comparison dataframe
+    sector_comparison = []
+    for sector in all_sectors:
+        fund_a_data = sector_df[
+            (sector_df['asset_code'] == fund_a) & 
+            (sector_df['industry'] == sector)
+        ]
+        fund_b_data = sector_df[
+            (sector_df['asset_code'] == fund_b) & 
+            (sector_df['industry'] == sector)
+        ]
+        
+        sector_comparison.append({
+            'sector': sector,
+            'fund_a_weight': fund_a_data['asset_percent'].values[0] if not fund_a_data.empty else 0,
+            'fund_b_weight': fund_b_data['asset_percent'].values[0] if not fund_b_data.empty else 0,
+            'max_weight': max(
+                fund_a_data['asset_percent'].values[0] if not fund_a_data.empty else 0,
+                fund_b_data['asset_percent'].values[0] if not fund_b_data.empty else 0
+            ),
+            'in_both': not fund_a_data.empty and not fund_b_data.empty
+        })
+    
+    sector_comp_df = pd.DataFrame(sector_comparison)
+    # Sort by max weight descending
+    sector_comp_df = sector_comp_df.sort_values('max_weight', ascending=False)
+    
+    # Sector Allocation Bar Chart
+    fig_sector = go.Figure()
+    
+    # Add Fund A bars
+    fig_sector.add_trace(go.Bar(
+        name=fund_a,
+        x=sector_comp_df['sector'],
+        y=sector_comp_df['fund_a_weight'],
+        marker_color='#4ECDC4',
+        marker_line_color='#2C7A7B',
+        marker_line_width=2,
+        text=sector_comp_df['fund_a_weight'].apply(lambda x: f'{x:.1f}%' if x > 0 else ''),
+        textposition='outside',
+        hovertemplate='<b>%{x}</b><br>' +
+                      f'{fund_a}<br>' +
+                      'Weight: %{y:.2f}%<br>' +
+                      '<extra></extra>'
+    ))
+    
+    # Add Fund B bars
+    fig_sector.add_trace(go.Bar(
+        name=fund_b,
+        x=sector_comp_df['sector'],
+        y=sector_comp_df['fund_b_weight'],
+        marker_color='#FF6B6B',
+        marker_line_color='#C53030',
+        marker_line_width=2,
+        text=sector_comp_df['fund_b_weight'].apply(lambda x: f'{x:.1f}%' if x > 0 else ''),
+        textposition='outside',
+        hovertemplate='<b>%{x}</b><br>' +
+                      f'{fund_b}<br>' +
+                      'Weight: %{y:.2f}%<br>' +
+                      '<extra></extra>'
+    ))
+    
+    # Add Total bars (sum of both funds)
+    sector_comp_df['total_weight'] = sector_comp_df['fund_a_weight'] + sector_comp_df['fund_b_weight']
+    fig_sector.add_trace(go.Bar(
+        name='Total',
+        x=sector_comp_df['sector'],
+        y=sector_comp_df['total_weight'],
+        marker_color='#FCD34D',
+        marker_line_color='#F59E0B',
+        marker_line_width=2,
+        text=sector_comp_df['total_weight'].apply(lambda x: f'{x:.1f}%' if x > 0 else ''),
+        textposition='outside',
+        hovertemplate='<b>%{x}</b><br>' +
+                      'Total (Both Funds)<br>' +
+                      'Weight: %{y:.2f}%<br>' +
+                      '<extra></extra>'
+    ))
+    
+    fig_sector.update_layout(
+        barmode='group',
+        title=f"Sector Allocation: {fund_a} vs {fund_b}",
+        xaxis_title="Industry Sector",
+        yaxis_title="Portfolio Weight (%)",
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        ),
+        height=500,
+        hovermode='x unified',
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+    )
+    
+    fig_sector.update_xaxes(showgrid=False, tickangle=-45)
+    fig_sector.update_yaxes(showgrid=True, gridcolor='rgba(128,128,128,0.2)')
+    
+    st.plotly_chart(fig_sector, use_container_width=True)
+    
+    # Sector comparison table
+    st.markdown("**📊 Sector Allocation Details**")
+    
+    sector_table_data = []
+    for _, row in sector_comp_df.iterrows():
+        diff = row['fund_a_weight'] - row['fund_b_weight']
+        sector_table_data.append({
+            'Sector': row['sector'],
+            f'{fund_a} (%)': f"{row['fund_a_weight']:.2f}" if row['fund_a_weight'] > 0 else 'N/A',
+            f'{fund_b} (%)': f"{row['fund_b_weight']:.2f}" if row['fund_b_weight'] > 0 else 'N/A',
+            'Difference': diff,
+            'Difference_Display': f"+{diff:.2f}%" if diff > 0 else f"{diff:.2f}%"
+        })
+    
+    sector_table_df = pd.DataFrame(sector_table_data)
+    
+    # Drop the numeric Difference column, keep only Display version
+    display_df = sector_table_df.drop(columns=['Difference'])
+    display_df = display_df.rename(columns={'Difference_Display': 'Difference'})
+    
+    # Style the sector table with color-coded difference
+    def style_difference(row):
+        """Color code the difference column"""
+        styles = [''] * len(row)
+        
+        # Find the Difference column index
+        try:
+            diff_idx = list(row.index).index('Difference')
+            # Get the original numeric difference from sector_table_df
+            sector_name = row['Sector']
+            original_diff = sector_table_df[sector_table_df['Sector'] == sector_name]['Difference'].values[0]
+            
+            if original_diff > 0:
+                styles[diff_idx] = 'color: #16A34A; font-weight: 600'  # Green for Fund A higher
+            elif original_diff < 0:
+                styles[diff_idx] = 'color: #DC2626; font-weight: 600'  # Red for Fund B higher
+            else:
+                styles[diff_idx] = 'color: #6B7280'  # Gray for equal
+        except (ValueError, IndexError):
+            pass
+        
+        return styles
+    
+    styled_sector_table = display_df.style.apply(style_difference, axis=1)
+    
+    st.dataframe(styled_sector_table, use_container_width=True, height=300)
+    
+    # Sector insights
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown(f"**{fund_a} Top 3 Sectors:**")
+        fund_a_sectors = sector_df[sector_df['asset_code'] == fund_a].sort_values('asset_percent', ascending=False).head(3)
+        for _, row in fund_a_sectors.iterrows():
+            st.markdown(f"• **{row['industry']}**: {row['asset_percent']:.2f}%")
+    
+    with col2:
+        st.markdown(f"**{fund_b} Top 3 Sectors:**")
+        fund_b_sectors = sector_df[sector_df['asset_code'] == fund_b].sort_values('asset_percent', ascending=False).head(3)
+        for _, row in fund_b_sectors.iterrows():
+            st.markdown(f"• **{row['industry']}**: {row['asset_percent']:.2f}%")
+else:
+    st.info("No sector allocation data available for selected funds.")
+
 # Footer
 st.markdown("---")
 st.markdown("""
