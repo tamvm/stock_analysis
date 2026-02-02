@@ -138,7 +138,128 @@ def calculate_strategy_1(crypto_data, fund_data, initial_amount, loan_pct, inter
     
     return merged[['date', 'crypto_value', 'fund_value', 'debt', 'total_value', 'price_crypto', 'liquidation_price', 'initial_value', 'start_date']]
 
-def calculate_strategy_2(fund_data, initial_amount, start_date, end_date=None):
+def calculate_strategy_2_dca(crypto_data, fund_data, initial_amount, loan_pct, interest_rate, start_date, end_date=None):
+    """
+    Calculate Strategy 2: DCA Crypto-Backed VN Fund
+    - Split initial investment into 12 monthly BTC purchases
+    - After each BTC purchase, borrow loan_pct% of that purchase amount to invest in VN fund
+    
+    Returns DataFrame with columns: date, crypto_value, fund_value, debt, total_value
+    """
+    monthly_investment = initial_amount / 12
+    
+    # Get crypto data from start date
+    crypto_subset = crypto_data[crypto_data['date'] >= start_date].copy()
+    if crypto_subset.empty:
+        return pd.DataFrame()
+    
+    crypto_start_date = crypto_subset.iloc[0]['date']
+    
+    # Initialize tracking variables
+    total_crypto_holdings = 0
+    total_fund_holdings_usd = 0
+    purchase_records = []  # Track each monthly purchase
+    
+    # Make 12 monthly purchases
+    for month_idx in range(12):
+        # Calculate purchase date (approximately 30 days apart)
+        purchase_date = crypto_start_date + timedelta(days=month_idx * 30)
+        
+        # Find crypto price at purchase date
+        crypto_at_purchase = crypto_data[crypto_data['date'] >= purchase_date]
+        if crypto_at_purchase.empty:
+            break
+        
+        crypto_price = crypto_at_purchase.iloc[0]['price']
+        actual_purchase_date = crypto_at_purchase.iloc[0]['date']
+        
+        # Buy BTC with monthly investment
+        btc_purchased = monthly_investment / crypto_price
+        total_crypto_holdings += btc_purchased
+        
+        # Calculate loan amount (10% of this month's BTC purchase value)
+        loan_amount = monthly_investment * (loan_pct / 100)
+        
+        # Find fund price at purchase date
+        fund_at_purchase = fund_data[fund_data['date'] >= actual_purchase_date]
+        if fund_at_purchase.empty:
+            continue
+        
+        fund_price = fund_at_purchase.iloc[0]['price']
+        fund_price_usd = fund_price / VND_TO_USD
+        
+        # Buy VN fund with loan amount
+        fund_purchased = loan_amount / fund_price_usd
+        total_fund_holdings_usd += fund_purchased
+        
+        # Record this purchase
+        purchase_records.append({
+            'date': actual_purchase_date,
+            'loan_amount': loan_amount,
+            'btc_purchased': btc_purchased,
+            'btc_price': crypto_price,  # Store BTC price at purchase
+            'fund_purchased': fund_purchased
+        })
+    
+    if not purchase_records:
+        return pd.DataFrame()
+    
+    # Get all dates from first purchase to end
+    first_purchase_date = purchase_records[0]['date']
+    all_dates = crypto_data[crypto_data['date'] >= first_purchase_date].copy()
+    
+    if end_date:
+        all_dates = all_dates[all_dates['date'] <= end_date]
+    
+    # Merge with fund data
+    fund_subset = fund_data[fund_data['date'] >= first_purchase_date].copy()
+    if end_date:
+        fund_subset = fund_subset[fund_subset['date'] <= end_date]
+    
+    merged = pd.merge_asof(
+        all_dates.sort_values('date'),
+        fund_subset.sort_values('date'),
+        on='date',
+        direction='nearest',
+        suffixes=('_crypto', '_fund')
+    )
+    
+    if merged.empty:
+        return pd.DataFrame()
+    
+    # Calculate portfolio components for each date
+    merged['crypto_value'] = total_crypto_holdings * merged['price_crypto']
+    merged['fund_value'] = total_fund_holdings_usd * (merged['price_fund'] / VND_TO_USD)
+    
+    # Calculate accumulated debt (compound annually for each loan)
+    merged['debt'] = 0
+    for record in purchase_records:
+        loan_date = record['date']
+        loan_amount = record['loan_amount']
+        
+        # Calculate years elapsed since this specific loan
+        years_elapsed = (merged['date'] - loan_date).dt.days / 365.25
+        years_elapsed = years_elapsed.clip(lower=0)  # No negative years
+        
+        # Add compounded debt from this loan
+        merged['debt'] += loan_amount * ((1 + interest_rate / 100) ** years_elapsed)
+    
+    # Total portfolio value
+    merged['total_value'] = merged['crypto_value'] + merged['fund_value'] - merged['debt']
+    
+    # Calculate average BTC buy price (weighted average)
+    total_btc_cost = sum([record['btc_purchased'] * record['btc_price'] for record in purchase_records])
+    avg_btc_price = total_btc_cost / total_crypto_holdings if total_crypto_holdings > 0 else 0
+    merged['avg_btc_buy_price'] = avg_btc_price
+    
+    # Store initial value for CAGR calculation
+    merged['initial_value'] = initial_amount
+    merged['start_date'] = first_purchase_date
+    merged['price_crypto'] = merged['price_crypto']  # Keep for charts
+    
+    return merged[['date', 'crypto_value', 'fund_value', 'debt', 'total_value', 'price_crypto', 'avg_btc_buy_price', 'initial_value', 'start_date']]
+
+def calculate_strategy_3(fund_data, initial_amount, start_date, end_date=None):
     """
     Calculate Strategy 2: Simple VN Fund Investment
     
@@ -170,6 +291,46 @@ def calculate_strategy_2(fund_data, initial_amount, start_date, end_date=None):
     fund_subset['start_date'] = fund_start_date
     
     return fund_subset[['date', 'total_value', 'initial_value', 'start_date']]
+
+def calculate_yearly_drawdown(data):
+    """
+    Calculate maximum drawdown for each year
+    
+    Args:
+        data: DataFrame with 'date' and 'total_value' columns
+    
+    Returns:
+        DataFrame with 'year' and 'max_drawdown' columns
+    """
+    if data.empty:
+        return pd.DataFrame()
+    
+    data = data.copy()
+    data['year'] = pd.to_datetime(data['date']).dt.year
+    
+    yearly_drawdowns = []
+    
+    for year in data['year'].unique():
+        year_data = data[data['year'] == year].copy()
+        
+        if len(year_data) < 2:
+            continue
+        
+        # Calculate running maximum (peak)
+        year_data['running_max'] = year_data['total_value'].cummax()
+        
+        # Calculate drawdown from peak
+        year_data['drawdown'] = (year_data['total_value'] - year_data['running_max']) / year_data['running_max'] * 100
+        
+        # Get maximum drawdown (most negative value)
+        max_drawdown = year_data['drawdown'].min()
+        
+        yearly_drawdowns.append({
+            'year': int(year),
+            'max_drawdown': max_drawdown
+        })
+    
+    return pd.DataFrame(yearly_drawdowns)
 
 def calculate_rolling_cagr(data, years=4, crypto_data=None, fund_data=None):
     """
@@ -212,10 +373,25 @@ def calculate_rolling_cagr(data, years=4, crypto_data=None, fund_data=None):
                 # Get crypto prices if available
                 from_price = None
                 to_price = None
+                avg_dca_price = None
+                
                 if crypto_data is not None and 'price_crypto' in data.columns:
                     from_price = past_data.iloc[-1].get('price_crypto', None)
                     to_price = data.loc[i, 'price_crypto']
-                # Get fund prices if available (for Strategy 2)
+                    
+                    # Calculate avg DCA price for 12-month window starting from from_date
+                    monthly_prices = []
+                    for month_idx in range(12):
+                        purchase_date = from_date + timedelta(days=month_idx * 30)
+                        price_data = crypto_data[crypto_data['date'] >= purchase_date]
+                        if not price_data.empty:
+                            monthly_prices.append(price_data.iloc[0]['price'])
+                    
+                    if monthly_prices:
+                        # Harmonic mean for DCA (equal $ investment each month)
+                        avg_dca_price = len(monthly_prices) / sum(1/p for p in monthly_prices)
+                
+                # Get fund prices if available (for Strategy 3)
                 elif fund_data is not None:
                     # Match dates with fund_data
                     from_fund = fund_data[fund_data['date'] <= from_date]
@@ -230,7 +406,8 @@ def calculate_rolling_cagr(data, years=4, crypto_data=None, fund_data=None):
                     'from_date': from_date,
                     'to_date': current_date,
                     'from_price': from_price,
-                    'to_price': to_price
+                    'to_price': to_price,
+                    'avg_dca_price': avg_dca_price
                 })
     
     return pd.DataFrame(rolling_cagr_list)
@@ -275,19 +452,23 @@ def calculate_heatmap_data(crypto_data, fund_data, initial_amount, loan_pct, int
     """
     Calculate CAGR for multiple start dates to create heatmap
     
-    Returns DataFrame with columns: start_date, strategy_1_cagr, strategy_2_cagr
+    Returns DataFrame with columns: start_date, strategy_1_cagr, strategy_2_cagr, strategy_3_cagr
     """
     results = []
     
     for start_date in start_dates:
-        # Calculate Strategy 1
+        # Calculate Strategy 1 (Crypto-Backed VN Fund)
         s1_data = calculate_strategy_1(crypto_data, fund_data, initial_amount, loan_pct, 
                                       interest_rate, start_date, end_date)
         
-        # Calculate Strategy 2
-        s2_data = calculate_strategy_2(fund_data, initial_amount, start_date, end_date)
+        # Calculate Strategy 2 (DCA-Crypto-Backed VN Fund)
+        s2_data = calculate_strategy_2_dca(crypto_data, fund_data, initial_amount, loan_pct,
+                                          interest_rate, start_date, end_date)
         
-        if s1_data.empty or s2_data.empty:
+        # Calculate Strategy 3 (Simple VN Fund)
+        s3_data = calculate_strategy_3(fund_data, initial_amount, start_date, end_date)
+        
+        if s1_data.empty or s2_data.empty or s3_data.empty:
             continue
         
         # Get start and end values
@@ -295,6 +476,8 @@ def calculate_heatmap_data(crypto_data, fund_data, initial_amount, loan_pct, int
         s1_final = s1_data.iloc[-1]
         s2_start = s2_data.iloc[0]
         s2_final = s2_data.iloc[-1]
+        s3_start = s3_data.iloc[0]
+        s3_final = s3_data.iloc[-1]
         
         # Calculate years elapsed
         days_elapsed = (s1_final['date'] - s1_start['date']).days
@@ -306,6 +489,7 @@ def calculate_heatmap_data(crypto_data, fund_data, initial_amount, loan_pct, int
         # Calculate CAGR
         s1_cagr = (((s1_final['total_value'] / initial_amount) ** (1 / years_elapsed)) - 1) * 100
         s2_cagr = (((s2_final['total_value'] / initial_amount) ** (1 / years_elapsed)) - 1) * 100
+        s3_cagr = (((s3_final['total_value'] / initial_amount) ** (1 / years_elapsed)) - 1) * 100
         
         # Get crypto prices at start and end
         crypto_start_price = s1_start.get('price_crypto', None)
@@ -315,8 +499,10 @@ def calculate_heatmap_data(crypto_data, fund_data, initial_amount, loan_pct, int
             'start_date': start_date,
             'strategy_1_cagr': s1_cagr,
             'strategy_2_cagr': s2_cagr,
+            'strategy_3_cagr': s3_cagr,
             'strategy_1_value': s1_final['total_value'],
             'strategy_2_value': s2_final['total_value'],
+            'strategy_3_value': s3_final['total_value'],
             'crypto_start_price': crypto_start_price,
             'crypto_end_price': crypto_end_price
         })
@@ -445,19 +631,26 @@ if start_date >= end_date:
 with st.spinner("Calculating strategies..."):
     strategy_1 = calculate_strategy_1(crypto_data, fund_data, initial_amount, loan_pct, 
                                      interest_rate, start_date, end_date)
-    strategy_2 = calculate_strategy_2(fund_data, initial_amount, start_date, end_date)
+    strategy_2 = calculate_strategy_2_dca(crypto_data, fund_data, initial_amount, loan_pct,
+                                         interest_rate, start_date, end_date)
+    strategy_3 = calculate_strategy_3(fund_data, initial_amount, start_date, end_date)
 
-if strategy_1.empty or strategy_2.empty:
+if strategy_1.empty or strategy_2.empty or strategy_3.empty:
     st.error("Unable to calculate strategies. Please check your date selection.")
     st.stop()
 
-# Calculate rolling CAGR (pass crypto_data for price information)
+# Calculate rolling CAGR (pass crypto_data/fund_data for price information)
 rolling_cagr_4y_s1 = calculate_rolling_cagr(strategy_1, years=4, crypto_data=crypto_data)
-rolling_cagr_4y_s2 = calculate_rolling_cagr(strategy_2, years=4, fund_data=fund_data)
+rolling_cagr_4y_s2 = calculate_rolling_cagr(strategy_2, years=4, crypto_data=crypto_data)
+rolling_cagr_4y_s3 = calculate_rolling_cagr(strategy_3, years=4, fund_data=fund_data)
+
 rolling_cagr_2y_s1 = calculate_rolling_cagr(strategy_1, years=2, crypto_data=crypto_data)
-rolling_cagr_2y_s2 = calculate_rolling_cagr(strategy_2, years=2, fund_data=fund_data)
+rolling_cagr_2y_s2 = calculate_rolling_cagr(strategy_2, years=2, crypto_data=crypto_data)
+rolling_cagr_2y_s3 = calculate_rolling_cagr(strategy_3, years=2, fund_data=fund_data)
+
 rolling_cagr_1y_s1 = calculate_rolling_cagr(strategy_1, years=1, crypto_data=crypto_data)
-rolling_cagr_1y_s2 = calculate_rolling_cagr(strategy_2, years=1, fund_data=fund_data)
+rolling_cagr_1y_s2 = calculate_rolling_cagr(strategy_2, years=1, crypto_data=crypto_data)
+rolling_cagr_1y_s3 = calculate_rolling_cagr(strategy_3, years=1, fund_data=fund_data)
 
 # Rolling CAGR Charts
 st.subheader("📈 Rolling CAGR Comparison")
@@ -489,16 +682,42 @@ if not rolling_cagr_4y_s1.empty:
         x=rolling_cagr_4y_s1['date'],
         y=rolling_cagr_4y_s1['rolling_cagr'],
         mode='lines',
-        name=f'Crypto-Backed VN Fund',
-        line=dict(color='#4ECDC4', width=3),
+        name='Crypto-Backed VN Fund',
+        line=dict(color='#4ECDC4', width=2.5),
         hovertemplate='%{text}<extra></extra>',
         text=hover_text_s1
     ), row=1, col=1)
 
-# Add Strategy 2 CAGR
+# Add Strategy 2 CAGR (DCA)
 if not rolling_cagr_4y_s2.empty:
     hover_text_s2 = []
     for _, row in rolling_cagr_4y_s2.iterrows():
+        text = f"<b>DCA-Crypto-Backed VN Fund</b><br>From: {row['from_date'].strftime('%d/%m/%Y')}"
+        if pd.notna(row.get('from_price')):
+            text += f" ({crypto_asset}: ${row['from_price']:,.0f})"
+        text += f"<br>To: {row['to_date'].strftime('%d/%m/%Y')}"
+        if pd.notna(row.get('to_price')):
+            text += f" ({crypto_asset}: ${row['to_price']:,.0f})"
+        # Add average BTC buy price for this specific rolling period
+        avg_dca = row.get('avg_dca_price')
+        if pd.notna(avg_dca) and avg_dca > 0:
+            text += f"<br>Avg BTC Buy Price: ${avg_dca:,.0f}"
+        text += f"<br>CAGR: {row['rolling_cagr']:.2f}%"
+        hover_text_s2.append(text)
+    fig_4y.add_trace(go.Scatter(
+        x=rolling_cagr_4y_s2['date'],
+        y=rolling_cagr_4y_s2['rolling_cagr'],
+        mode='lines',
+        name='DCA-Crypto-Backed VN Fund',
+        line=dict(color='#9B59B6', width=2.5),
+        hovertemplate='%{text}<extra></extra>',
+        text=hover_text_s2
+    ), row=1, col=1)
+
+# Add Strategy 3 CAGR (Simple VN Fund)
+if not rolling_cagr_4y_s3.empty:
+    hover_text_s3 = []
+    for _, row in rolling_cagr_4y_s3.iterrows():
         text = f"<b>Simple VN Fund</b><br>From: {row['from_date'].strftime('%d/%m/%Y')}"
         if pd.notna(row.get('from_price')):
             text += f" (NAV: {row['from_price']:,.0f} VND)"
@@ -506,15 +725,15 @@ if not rolling_cagr_4y_s2.empty:
         if pd.notna(row.get('to_price')):
             text += f" (NAV: {row['to_price']:,.0f} VND)"
         text += f"<br>CAGR: {row['rolling_cagr']:.2f}%"
-        hover_text_s2.append(text)
+        hover_text_s3.append(text)
     fig_4y.add_trace(go.Scatter(
-        x=rolling_cagr_4y_s2['date'],
-        y=rolling_cagr_4y_s2['rolling_cagr'],
+        x=rolling_cagr_4y_s3['date'],
+        y=rolling_cagr_4y_s3['rolling_cagr'],
         mode='lines',
-        name=f'Simple VN Fund',
-        line=dict(color='#FF6B6B', width=3),
+        name='Simple VN Fund',
+        line=dict(color='#FF6B6B', width=2.5),
         hovertemplate='%{text}<extra></extra>',
-        text=hover_text_s2
+        text=hover_text_s3
     ), row=1, col=1)
 
 # Add 0% reference line
@@ -557,7 +776,7 @@ if not liquidated.empty:
 
 fig_4y.update_xaxes(title_text="Date", row=2, col=1)
 fig_4y.update_yaxes(title_text="CAGR (%)", row=1, col=1)
-fig_4y.update_yaxes(title_text="Price (USD)", row=2, col=1)
+fig_4y.update_yaxes(title_text="Price (USD)", type="log", row=2, col=1)  # Log scale for BTC price
 
 fig_4y.update_layout(
     height=700,
@@ -602,16 +821,42 @@ if not rolling_cagr_2y_s1.empty:
         x=rolling_cagr_2y_s1['date'],
         y=rolling_cagr_2y_s1['rolling_cagr'],
         mode='lines',
-        name=f'Crypto-Backed VN Fund',
-        line=dict(color='#4ECDC4', width=3),
+        name='Crypto-Backed VN Fund',
+        line=dict(color='#4ECDC4', width=2.5),
         hovertemplate='%{text}<extra></extra>',
         text=hover_text_s1
     ), row=1, col=1)
 
-# Add Strategy 2 CAGR
+# Add Strategy 2 CAGR (DCA)
 if not rolling_cagr_2y_s2.empty:
     hover_text_s2 = []
     for _, row in rolling_cagr_2y_s2.iterrows():
+        text = f"<b>DCA-Crypto-Backed VN Fund</b><br>From: {row['from_date'].strftime('%d/%m/%Y')}"
+        if pd.notna(row.get('from_price')):
+            text += f" ({crypto_asset}: ${row['from_price']:,.0f})"
+        text += f"<br>To: {row['to_date'].strftime('%d/%m/%Y')}"
+        if pd.notna(row.get('to_price')):
+            text += f" ({crypto_asset}: ${row['to_price']:,.0f})"
+        # Add average BTC buy price for this specific rolling period
+        avg_dca = row.get('avg_dca_price')
+        if pd.notna(avg_dca) and avg_dca > 0:
+            text += f"<br>Avg BTC Buy Price: ${avg_dca:,.0f}"
+        text += f"<br>CAGR: {row['rolling_cagr']:.2f}%"
+        hover_text_s2.append(text)
+    fig_2y.add_trace(go.Scatter(
+        x=rolling_cagr_2y_s2['date'],
+        y=rolling_cagr_2y_s2['rolling_cagr'],
+        mode='lines',
+        name='DCA-Crypto-Backed VN Fund',
+        line=dict(color='#9B59B6', width=2.5),
+        hovertemplate='%{text}<extra></extra>',
+        text=hover_text_s2
+    ), row=1, col=1)
+
+# Add Strategy 3 CAGR (Simple VN Fund)
+if not rolling_cagr_2y_s3.empty:
+    hover_text_s3 = []
+    for _, row in rolling_cagr_2y_s3.iterrows():
         text = f"<b>Simple VN Fund</b><br>From: {row['from_date'].strftime('%d/%m/%Y')}"
         if pd.notna(row.get('from_price')):
             text += f" (NAV: {row['from_price']:,.0f} VND)"
@@ -619,15 +864,15 @@ if not rolling_cagr_2y_s2.empty:
         if pd.notna(row.get('to_price')):
             text += f" (NAV: {row['to_price']:,.0f} VND)"
         text += f"<br>CAGR: {row['rolling_cagr']:.2f}%"
-        hover_text_s2.append(text)
+        hover_text_s3.append(text)
     fig_2y.add_trace(go.Scatter(
-        x=rolling_cagr_2y_s2['date'],
-        y=rolling_cagr_2y_s2['rolling_cagr'],
+        x=rolling_cagr_2y_s3['date'],
+        y=rolling_cagr_2y_s3['rolling_cagr'],
         mode='lines',
-        name=f'Simple VN Fund',
-        line=dict(color='#FF6B6B', width=3),
+        name='Simple VN Fund',
+        line=dict(color='#FF6B6B', width=2.5),
         hovertemplate='%{text}<extra></extra>',
-        text=hover_text_s2
+        text=hover_text_s3
     ), row=1, col=1)
 
 # Add 0% reference line
@@ -643,33 +888,9 @@ fig_2y.add_trace(go.Scatter(
     hovertemplate=f'<b>{crypto_asset}</b><br>Date: %{{x|%Y-%m-%d}}<br>Price: $%{{y:,.0f}}<extra></extra>'
 ), row=2, col=1)
 
-# Add liquidation price line
-fig_2y.add_trace(go.Scatter(
-    x=strategy_1['date'],
-    y=strategy_1['liquidation_price'],
-    mode='lines',
-    name='Liquidation Price',
-    line=dict(color='#FF0000', width=2, dash='dot'),
-    hovertemplate=f'<b>Liquidation Price</b><br>Date: %{{x|%Y-%m-%d}}<br>Price: $%{{y:,.0f}}<extra></extra>'
-), row=2, col=1)
-
-# Highlight liquidation zones
-liquidated = strategy_1[strategy_1['price_crypto'] < strategy_1['liquidation_price']]
-if not liquidated.empty:
-    for date in liquidated['date']:
-        fig_2y.add_vrect(
-            x0=date - timedelta(days=1),
-            x1=date + timedelta(days=1),
-            fillcolor="red",
-            opacity=0.2,
-            layer="below",
-            line_width=0,
-            row=2, col=1
-        )
-
 fig_2y.update_xaxes(title_text="Date", row=2, col=1)
 fig_2y.update_yaxes(title_text="CAGR (%)", row=1, col=1)
-fig_2y.update_yaxes(title_text="Price (USD)", row=2, col=1)
+fig_2y.update_yaxes(title_text="Price (USD)", type="log", row=2, col=1)  # Log scale for BTC price
 
 fig_2y.update_layout(
     height=700,
@@ -714,16 +935,42 @@ if not rolling_cagr_1y_s1.empty:
         x=rolling_cagr_1y_s1['date'],
         y=rolling_cagr_1y_s1['rolling_cagr'],
         mode='lines',
-        name=f'Crypto-Backed VN Fund',
-        line=dict(color='#4ECDC4', width=3),
+        name='Crypto-Backed VN Fund',
+        line=dict(color='#4ECDC4', width=2.5),
         hovertemplate='%{text}<extra></extra>',
         text=hover_text_s1
     ), row=1, col=1)
 
-# Add Strategy 2 CAGR
+# Add Strategy 2 CAGR (DCA)
 if not rolling_cagr_1y_s2.empty:
     hover_text_s2 = []
     for _, row in rolling_cagr_1y_s2.iterrows():
+        text = f"<b>DCA-Crypto-Backed VN Fund</b><br>From: {row['from_date'].strftime('%d/%m/%Y')}"
+        if pd.notna(row.get('from_price')):
+            text += f" ({crypto_asset}: ${row['from_price']:,.0f})"
+        text += f"<br>To: {row['to_date'].strftime('%d/%m/%Y')}"
+        if pd.notna(row.get('to_price')):
+            text += f" ({crypto_asset}: ${row['to_price']:,.0f})"
+        # Add average BTC buy price for this specific rolling period
+        avg_dca = row.get('avg_dca_price')
+        if pd.notna(avg_dca) and avg_dca > 0:
+            text += f"<br>Avg BTC Buy Price: ${avg_dca:,.0f}"
+        text += f"<br>CAGR: {row['rolling_cagr']:.2f}%"
+        hover_text_s2.append(text)
+    fig_1y.add_trace(go.Scatter(
+        x=rolling_cagr_1y_s2['date'],
+        y=rolling_cagr_1y_s2['rolling_cagr'],
+        mode='lines',
+        name='DCA-Crypto-Backed VN Fund',
+        line=dict(color='#9B59B6', width=2.5),
+        hovertemplate='%{text}<extra></extra>',
+        text=hover_text_s2
+    ), row=1, col=1)
+
+# Add Strategy 3 CAGR (Simple VN Fund)
+if not rolling_cagr_1y_s3.empty:
+    hover_text_s3 = []
+    for _, row in rolling_cagr_1y_s3.iterrows():
         text = f"<b>Simple VN Fund</b><br>From: {row['from_date'].strftime('%d/%m/%Y')}"
         if pd.notna(row.get('from_price')):
             text += f" (NAV: {row['from_price']:,.0f} VND)"
@@ -731,15 +978,15 @@ if not rolling_cagr_1y_s2.empty:
         if pd.notna(row.get('to_price')):
             text += f" (NAV: {row['to_price']:,.0f} VND)"
         text += f"<br>CAGR: {row['rolling_cagr']:.2f}%"
-        hover_text_s2.append(text)
+        hover_text_s3.append(text)
     fig_1y.add_trace(go.Scatter(
-        x=rolling_cagr_1y_s2['date'],
-        y=rolling_cagr_1y_s2['rolling_cagr'],
+        x=rolling_cagr_1y_s3['date'],
+        y=rolling_cagr_1y_s3['rolling_cagr'],
         mode='lines',
-        name=f'Simple VN Fund',
-        line=dict(color='#FF6B6B', width=3),
+        name='Simple VN Fund',
+        line=dict(color='#FF6B6B', width=2.5),
         hovertemplate='%{text}<extra></extra>',
-        text=hover_text_s2
+        text=hover_text_s3
     ), row=1, col=1)
 
 # Add 0% reference line
@@ -755,33 +1002,9 @@ fig_1y.add_trace(go.Scatter(
     hovertemplate=f'<b>{crypto_asset}</b><br>Date: %{{x|%Y-%m-%d}}<br>Price: $%{{y:,.0f}}<extra></extra>'
 ), row=2, col=1)
 
-# Add liquidation price line
-fig_1y.add_trace(go.Scatter(
-    x=strategy_1['date'],
-    y=strategy_1['liquidation_price'],
-    mode='lines',
-    name='Liquidation Price',
-    line=dict(color='#FF0000', width=2, dash='dot'),
-    hovertemplate=f'<b>Liquidation Price</b><br>Date: %{{x|%Y-%m-%d}}<br>Price: $%{{y:,.0f}}<extra></extra>'
-), row=2, col=1)
-
-# Highlight liquidation zones
-liquidated = strategy_1[strategy_1['price_crypto'] < strategy_1['liquidation_price']]
-if not liquidated.empty:
-    for date in liquidated['date']:
-        fig_1y.add_vrect(
-            x0=date - timedelta(days=1),
-            x1=date + timedelta(days=1),
-            fillcolor="red",
-            opacity=0.2,
-            layer="below",
-            line_width=0,
-            row=2, col=1
-        )
-
 fig_1y.update_xaxes(title_text="Date", row=2, col=1)
 fig_1y.update_yaxes(title_text="CAGR (%)", row=1, col=1)
-fig_1y.update_yaxes(title_text="Price (USD)", row=2, col=1)
+fig_1y.update_yaxes(title_text="Price (USD)", type="log", row=2, col=1)  # Log scale for BTC price
 
 fig_1y.update_layout(
     height=700,
@@ -830,7 +1053,8 @@ if heatmap_start < heatmap_end_for_starts:
         heatmap_matrix = pd.DataFrame({
             'Start Date': heatmap_df['start_date_str'],
             'Crypto-Backed VN Fund': heatmap_df['strategy_1_cagr'],
-            'Simple VN Fund': heatmap_df['strategy_2_cagr']
+            'DCA-Crypto-Backed VN Fund': heatmap_df['strategy_2_cagr'],
+            'Simple VN Fund': heatmap_df['strategy_3_cagr']
         })
         
         # Transpose for better visualization
@@ -881,7 +1105,7 @@ if heatmap_start < heatmap_end_for_starts:
         # Heatmap insights
         st.markdown("**📖 Heatmap Insights:**")
         
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         
         with col1:
             # Top 3 start dates for Strategy 1 (with minimum 3 months spacing)
@@ -892,42 +1116,318 @@ if heatmap_start < heatmap_end_for_starts:
                 medal = medals[i] if i < len(medals) else '•'
                 st.markdown(
                     f"{medal} **{row['start_date'].strftime('%d/%m/%Y')}**: "
-                    f"Crypto-Backed: {row['strategy_1_cagr']:.2f}% | Simple: {row['strategy_2_cagr']:.2f}%"
+                    f"S1: {row['strategy_1_cagr']:.2f}% | S2: {row['strategy_2_cagr']:.2f}% | S3: {row['strategy_3_cagr']:.2f}%"
                 )
             
         with col2:
-            # Top 3 start dates for Strategy 2 (with minimum 3 months spacing)
+            # Top 3 start dates for Strategy 2 (DCA) (with minimum 3 months spacing)
             top3_s2 = get_top_n_dates_with_spacing(heatmap_df, 'strategy_2_cagr', n=3, min_days_apart=90)
-            st.markdown(f"**Top 3 Start Dates (Simple VN Fund):**")
+            st.markdown(f"**Top 3 Start Dates (DCA-Crypto-Backed VN Fund):**")
             medals = ['🥇', '🥈', '🥉']
             for i, (idx, row) in enumerate(top3_s2.iterrows()):
                 medal = medals[i] if i < len(medals) else '•'
                 st.markdown(
                     f"{medal} **{row['start_date'].strftime('%d/%m/%Y')}**: "
-                    f"Crypto-Backed: {row['strategy_1_cagr']:.2f}% | Simple: {row['strategy_2_cagr']:.2f}%"
+                    f"S1: {row['strategy_1_cagr']:.2f}% | S2: {row['strategy_2_cagr']:.2f}% | S3: {row['strategy_3_cagr']:.2f}%"
+                )
+        
+        with col3:
+            # Top 3 start dates for Strategy 3 (Simple VN Fund) (with minimum 3 months spacing)
+            top3_s3 = get_top_n_dates_with_spacing(heatmap_df, 'strategy_3_cagr', n=3, min_days_apart=90)
+            st.markdown(f"**Top 3 Start Dates (Simple VN Fund):**")
+            medals = ['🥇', '🥈', '🥉']
+            for i, (idx, row) in enumerate(top3_s3.iterrows()):
+                medal = medals[i] if i < len(medals) else '•'
+                st.markdown(
+                    f"{medal} **{row['start_date'].strftime('%d/%m/%Y')}**: "
+                    f"S1: {row['strategy_1_cagr']:.2f}% | S2: {row['strategy_2_cagr']:.2f}% | S3: {row['strategy_3_cagr']:.2f}%"
                 )
         
         # Strategy comparison across all start dates
         st.markdown("**Overall Strategy Performance:**")
-        s1_wins = (heatmap_df['strategy_1_cagr'] > heatmap_df['strategy_2_cagr']).sum()
-        s2_wins = (heatmap_df['strategy_2_cagr'] > heatmap_df['strategy_1_cagr']).sum()
+        
+        # Calculate wins for each strategy
+        s1_wins = ((heatmap_df['strategy_1_cagr'] > heatmap_df['strategy_2_cagr']) & 
+                   (heatmap_df['strategy_1_cagr'] > heatmap_df['strategy_3_cagr'])).sum()
+        s2_wins = ((heatmap_df['strategy_2_cagr'] > heatmap_df['strategy_1_cagr']) & 
+                   (heatmap_df['strategy_2_cagr'] > heatmap_df['strategy_3_cagr'])).sum()
+        s3_wins = ((heatmap_df['strategy_3_cagr'] > heatmap_df['strategy_1_cagr']) & 
+                   (heatmap_df['strategy_3_cagr'] > heatmap_df['strategy_2_cagr'])).sum()
         total = len(heatmap_df)
         
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Crypto-Backed Wins", f"{s1_wins}/{total}", f"{(s1_wins/total)*100:.1f}%")
         with col2:
-            st.metric("Simple Fund Wins", f"{s2_wins}/{total}", f"{(s2_wins/total)*100:.1f}%")
+            st.metric("DCA-Crypto-Backed Wins", f"{s2_wins}/{total}", f"{(s2_wins/total)*100:.1f}%")
         with col3:
-            avg_diff = (heatmap_df['strategy_1_cagr'] - heatmap_df['strategy_2_cagr']).mean()
-            st.metric("Avg CAGR Difference", f"{avg_diff:+.2f}%", 
-                     "Crypto-Backed better" if avg_diff > 0 else "Simple better")
+            st.metric("Simple Fund Wins", f"{s3_wins}/{total}", f"{(s3_wins/total)*100:.1f}%")
     else:
         st.info("Not enough data to generate heatmap.")
 else:
     st.info("Not enough historical data to generate heatmap. Need at least 1 year of data.")
 
+# Yearly Drawdown Analysis
+st.markdown("---")
+st.subheader("📉 Yearly Maximum Drawdown Analysis")
+st.markdown("Maximum drawdown shows the largest peak-to-trough decline within each year. Lower (less negative) is better.")
+
+# Calculate yearly drawdowns for all strategies
+drawdown_s1 = calculate_yearly_drawdown(strategy_1)
+drawdown_s2 = calculate_yearly_drawdown(strategy_2)
+drawdown_s3 = calculate_yearly_drawdown(strategy_3)
+
+if not drawdown_s1.empty and not drawdown_s2.empty and not drawdown_s3.empty:
+    # Merge all drawdowns
+    drawdown_s1['strategy'] = 'Crypto-Backed VN Fund'
+    drawdown_s2['strategy'] = 'DCA-Crypto-Backed VN Fund'
+    drawdown_s3['strategy'] = 'Simple VN Fund'
+    
+    all_drawdowns = pd.concat([drawdown_s1, drawdown_s2, drawdown_s3])
+    
+    # Create line chart
+    fig_drawdown = go.Figure()
+    
+    fig_drawdown.add_trace(go.Scatter(
+        x=drawdown_s1['year'],
+        y=drawdown_s1['max_drawdown'],
+        mode='lines+markers',
+        name='Crypto-Backed VN Fund',
+        line=dict(color='#4ECDC4', width=2.5),
+        marker=dict(size=8)
+    ))
+    
+    fig_drawdown.add_trace(go.Scatter(
+        x=drawdown_s2['year'],
+        y=drawdown_s2['max_drawdown'],
+        mode='lines+markers',
+        name='DCA-Crypto-Backed VN Fund',
+        line=dict(color='#9B59B6', width=2.5),
+        marker=dict(size=8)
+    ))
+    
+    fig_drawdown.add_trace(go.Scatter(
+        x=drawdown_s3['year'],
+        y=drawdown_s3['max_drawdown'],
+        mode='lines+markers',
+        name='Simple VN Fund',
+        line=dict(color='#FF6B6B', width=2.5),
+        marker=dict(size=8)
+    ))
+    
+    fig_drawdown.update_layout(
+        title="Yearly Maximum Drawdown Comparison",
+        xaxis_title="Year",
+        yaxis_title="Max Drawdown (%)",
+        hovermode='x unified',
+        height=500,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    
+    st.plotly_chart(fig_drawdown, use_container_width=True)
+    
+    # Create comparison table
+    st.markdown("**📊 Yearly Drawdown Table:**")
+    
+    # Pivot data for table
+    pivot_data = []
+    years = sorted(all_drawdowns['year'].unique())
+    
+    for year in years:
+        year_data = {'Year': int(year)}
+        s1_dd = drawdown_s1[drawdown_s1['year'] == year]['max_drawdown'].values
+        s2_dd = drawdown_s2[drawdown_s2['year'] == year]['max_drawdown'].values
+        s3_dd = drawdown_s3[drawdown_s3['year'] == year]['max_drawdown'].values
+        
+        year_data['Crypto-Backed'] = f"{s1_dd[0]:.2f}%" if len(s1_dd) > 0 else "N/A"
+        year_data['DCA-Crypto-Backed'] = f"{s2_dd[0]:.2f}%" if len(s2_dd) > 0 else "N/A"
+        year_data['Simple Fund'] = f"{s3_dd[0]:.2f}%" if len(s3_dd) > 0 else "N/A"
+        
+        # Find best (least negative) drawdown
+        dds = []
+        if len(s1_dd) > 0: dds.append(('Crypto-Backed', s1_dd[0]))
+        if len(s2_dd) > 0: dds.append(('DCA-Crypto-Backed', s2_dd[0]))
+        if len(s3_dd) > 0: dds.append(('Simple Fund', s3_dd[0]))
+        
+        if dds:
+            best_strategy = max(dds, key=lambda x: x[1])[0]  # Max because drawdowns are negative
+            year_data['Best Strategy'] = best_strategy
+        else:
+            year_data['Best Strategy'] = "N/A"
+        
+        pivot_data.append(year_data)
+    
+    df_table = pd.DataFrame(pivot_data)
+    
+    # Style the table
+    def highlight_best(row):
+        styles = [''] * len(row)
+        best = row['Best Strategy']
+        if best == 'Crypto-Backed':
+            styles[1] = 'background-color: #90EE90'
+        elif best == 'DCA-Crypto-Backed':
+            styles[2] = 'background-color: #90EE90'
+        elif best == 'Simple Fund':
+            styles[3] = 'background-color: #90EE90'
+        return styles
+    
+    st.dataframe(
+        df_table.style.apply(highlight_best, axis=1),
+        use_container_width=True,
+        hide_index=True
+    )
+else:
+    st.info("Not enough data to calculate yearly drawdowns.")
+
 # Footer
+st.markdown("---")
+
+# Debug Table Section
+st.subheader("🔍 Monthly Portfolio Debug Table")
+st.markdown("Detailed monthly breakdown of portfolio metrics for all strategies.")
+
+# Display initial investment and strategy descriptions
+st.info(f"""
+**Initial Investment Amount:** ${initial_amount:,.0f} USD
+
+**Strategies:**
+- **S1 (Crypto-Backed VN Fund):** 
+  - Invest ALL ${initial_amount:,.0f} in {crypto_asset} at start
+  - Example: ${initial_amount:,.0f} / ${crypto_data[crypto_data['date'] >= start_date].iloc[0]['price']:,.0f} = {initial_amount / crypto_data[crypto_data['date'] >= start_date].iloc[0]['price']:.2f} BTC
+  - Borrow {loan_pct}% of initial amount (${initial_amount * loan_pct / 100:,.0f}) to invest in {fund_asset}
+  - BTC holdings remain CONSTANT throughout
+
+- **S2 (DCA-Crypto-Backed VN Fund):** 
+  - Monthly DCA: ${initial_amount / 12:,.0f} per month for 12 months
+  - Example Month 1: ${initial_amount / 12:,.0f} / ${crypto_data[crypto_data['date'] >= start_date].iloc[0]['price']:,.0f} = {(initial_amount / 12) / crypto_data[crypto_data['date'] >= start_date].iloc[0]['price']:.2f} BTC
+  - Borrow {loan_pct}% of EACH monthly investment (${initial_amount / 12 * loan_pct / 100:,.0f} per month) to invest in {fund_asset}
+  - BTC holdings INCREASE each month via DCA
+
+- **S3 (Simple VN Fund):** 
+  - Invest ${initial_amount:,.0f} directly in {fund_asset}
+  - No crypto, no leverage
+""")
+
+# Date picker for debug start date
+col1, col2 = st.columns(2)
+with col1:
+    debug_start_date = st.date_input(
+        "Debug Start Date",
+        value=start_date,
+        min_value=start_date,
+        max_value=end_date if end_date else datetime.now().date(),
+        key="debug_start_date"
+    )
+with col2:
+    debug_months = st.slider("Number of months to display", min_value=1, max_value=24, value=12)
+
+# Filter data based on debug start date
+debug_start = pd.to_datetime(debug_start_date)
+debug_end = debug_start + pd.DateOffset(months=debug_months)
+
+# Filter strategy data
+s1_debug = strategy_1[(strategy_1['date'] >= debug_start) & (strategy_1['date'] <= debug_end)].copy()
+s2_debug = strategy_2[(strategy_2['date'] >= debug_start) & (strategy_2['date'] <= debug_end)].copy()
+s3_debug = strategy_3[(strategy_3['date'] >= debug_start) & (strategy_3['date'] <= debug_end)].copy()
+
+if not s1_debug.empty and not s2_debug.empty and not s3_debug.empty:
+    # Calculate S1 BTC holdings (constant - bought at ACTUAL strategy start)
+    # Use the first row's crypto_value and price to get the actual BTC holdings
+    first_row_s1 = strategy_1.iloc[0]
+    first_btc_price = crypto_data[crypto_data['date'] <= first_row_s1['date']].iloc[-1]['price']
+    s1_btc_holdings_constant = first_row_s1['crypto_value'] / first_btc_price
+    
+    # Resample to monthly (end of month)
+    s1_monthly = s1_debug.set_index('date').resample('ME').last().reset_index()
+    s2_monthly = s2_debug.set_index('date').resample('ME').last().reset_index()
+    s3_monthly = s3_debug.set_index('date').resample('ME').last().reset_index()
+    
+    # Create debug table
+    debug_data = []
+    
+    for idx in range(min(len(s1_monthly), len(s2_monthly), len(s3_monthly))):
+        row_s1 = s1_monthly.iloc[idx]
+        row_s2 = s2_monthly.iloc[idx]
+        row_s3 = s3_monthly.iloc[idx]
+        
+        # Get BTC price for this date
+        btc_price_data = crypto_data[crypto_data['date'] <= row_s1['date']]
+        btc_price = btc_price_data.iloc[-1]['price'] if not btc_price_data.empty else 0
+        
+        # Get fund price for this date (NAV per unit in VND)
+        fund_price_data = fund_data[fund_data['date'] <= row_s1['date']]
+        fund_nav_vnd = fund_price_data.iloc[-1]['price'] if not fund_price_data.empty else 0
+        
+        # S1: BTC holdings is constant (bought at start)
+        s1_btc_holdings = s1_btc_holdings_constant
+        
+        # S2: BTC holdings changes over time (DCA)
+        s2_btc_holdings = row_s2['crypto_value'] / btc_price if btc_price > 0 else 0
+        
+        # Get debt values
+        s1_debt = row_s1.get('debt', 0)
+        s2_debt = row_s2.get('debt', 0)
+        
+        # Calculate liquidation price for Strategy 2 only
+        liquidation_threshold = 0.825
+        s2_liq_price = (s2_debt / (s2_btc_holdings * liquidation_threshold)) if s2_btc_holdings > 0 else 0
+        
+        debug_row = {
+            'Date': row_s1['date'].strftime('%Y-%m'),
+            'BTC Price': f"${btc_price:,.0f}",
+            
+            # Strategy 1
+            'S1: BTC Holdings': f"{s1_btc_holdings:.4f}",
+            'S1: Crypto Value': f"${row_s1['crypto_value']:,.0f}",
+            'S1: Fund Value': f"${row_s1['fund_value']:,.0f}",
+            'S1: Fund NAV (VND)': f"{fund_nav_vnd:,.0f}",
+            'S1: Debt': f"${s1_debt:,.0f}",
+            'S1: Valuation': f"${row_s1['total_value']:,.0f}",
+            
+            # Strategy 2
+            'S2: BTC Holdings': f"{s2_btc_holdings:.4f}",
+            'S2: Crypto Value': f"${row_s2['crypto_value']:,.0f}",
+            'S2: Fund Value': f"${row_s2['fund_value']:,.0f}",
+            'S2: Fund NAV (VND)': f"{fund_nav_vnd:,.0f}",
+            'S2: Debt': f"${s2_debt:,.0f}",
+            'S2: Liq Price': f"${s2_liq_price:,.0f}",
+            'S2: Valuation': f"${row_s2['total_value']:,.0f}",
+            
+            # Strategy 3
+            'S3: Fund Value': f"${row_s3['total_value']:,.0f}",
+            'S3: Fund NAV (VND)': f"{fund_nav_vnd:,.0f}",
+            'S3: Valuation': f"${row_s3['total_value']:,.0f}",
+        }
+        
+        debug_data.append(debug_row)
+    
+    df_debug = pd.DataFrame(debug_data)
+    
+    # Style the table - highlight Valuation columns with dark blue background
+    def highlight_valuation(s):
+        if 'Valuation' in s.name:
+            return ['background-color: rgba(61, 157, 243, 0.2)'] * len(s)
+        return [''] * len(s)
+    
+    styled_df = df_debug.style.apply(highlight_valuation)
+    
+    st.dataframe(styled_df, use_container_width=True, hide_index=True)
+    
+    # Add explanation
+    st.markdown("""
+    **Column Explanations:**
+    - **BTC Price**: Current Bitcoin price (USD)
+    - **S1/S2 BTC Holdings**: Amount of BTC held (S1 is constant, S2 changes via DCA)
+    - **Crypto Value**: Current value of crypto holdings (USD)
+    - **Fund Value**: Current value of VN fund holdings (USD)
+    - **Fund NAV (VND)**: Price per unit of fund certificate (VND per CCQ)
+    - **Debt**: Accumulated debt from loans (USD)
+    - **Valuation**: Total portfolio value = Crypto Value + Fund Value - Debt (USD) - *highlighted in blue*
+    - **Liq Price**: Liquidation price for Strategy 2 (price at which position would be liquidated)
+    """)
+else:
+    st.info("No data available for selected debug period.")
+
 st.markdown("---")
 
 # Liquidation Calculator Section
