@@ -18,7 +18,10 @@ st.set_page_config(
 # Constants
 VND_TO_USD = 26000
 
-@st.cache_data
+# DEBUG MODE - Set to True to show only Debug Table section
+DEBUG_MODE = False
+
+# @st.cache_data  # DISABLED FOR DEBUG
 def get_available_assets(db_path="db/investment_data.db"):
     """Get available cryptocurrencies and VN funds"""
     conn = sqlite3.connect(db_path)
@@ -45,7 +48,7 @@ def get_available_assets(db_path="db/investment_data.db"):
     
     return crypto_df['asset_code'].tolist(), fund_df['asset_code'].tolist()
 
-@st.cache_data
+# @st.cache_data  # DISABLED FOR DEBUG
 def get_price_data(asset_codes, db_path="db/investment_data.db"):
     """Get price data for specified assets"""
     conn = sqlite3.connect(db_path)
@@ -143,8 +146,9 @@ def calculate_strategy_2_dca(crypto_data, fund_data, initial_amount, loan_pct, i
     Calculate Strategy 2: DCA Crypto-Backed VN Fund
     - Split initial investment into 12 monthly BTC purchases
     - After each BTC purchase, borrow loan_pct% of that purchase amount to invest in VN fund
+    - Cash (uninvested amount) is tracked and included in total_value
     
-    Returns DataFrame with columns: date, crypto_value, fund_value, debt, total_value
+    Returns DataFrame with columns: date, crypto_value, fund_value, debt, cash, total_value
     """
     monthly_investment = initial_amount / 12
     
@@ -155,12 +159,11 @@ def calculate_strategy_2_dca(crypto_data, fund_data, initial_amount, loan_pct, i
     
     crypto_start_date = crypto_subset.iloc[0]['date']
     
-    # Initialize tracking variables
-    total_crypto_holdings = 0
-    total_fund_holdings_usd = 0
-    purchase_records = []  # Track each monthly purchase
+    # Track each monthly purchase with cumulative values
+    purchase_records = []
+    cumulative_btc = 0
+    cumulative_fund_units = 0
     
-    # Make 12 monthly purchases
     for month_idx in range(12):
         # Calculate purchase date (approximately 30 days apart)
         purchase_date = crypto_start_date + timedelta(days=month_idx * 30)
@@ -175,9 +178,9 @@ def calculate_strategy_2_dca(crypto_data, fund_data, initial_amount, loan_pct, i
         
         # Buy BTC with monthly investment
         btc_purchased = monthly_investment / crypto_price
-        total_crypto_holdings += btc_purchased
+        cumulative_btc += btc_purchased
         
-        # Calculate loan amount (10% of this month's BTC purchase value)
+        # Calculate loan amount
         loan_amount = monthly_investment * (loan_pct / 100)
         
         # Find fund price at purchase date
@@ -190,15 +193,19 @@ def calculate_strategy_2_dca(crypto_data, fund_data, initial_amount, loan_pct, i
         
         # Buy VN fund with loan amount
         fund_purchased = loan_amount / fund_price_usd
-        total_fund_holdings_usd += fund_purchased
+        cumulative_fund_units += fund_purchased
         
-        # Record this purchase
+        # Record this purchase with cumulative values
         purchase_records.append({
             'date': actual_purchase_date,
+            'month_idx': month_idx + 1,
             'loan_amount': loan_amount,
             'btc_purchased': btc_purchased,
-            'btc_price': crypto_price,  # Store BTC price at purchase
-            'fund_purchased': fund_purchased
+            'btc_price': crypto_price,
+            'fund_purchased': fund_purchased,
+            'cumulative_btc': cumulative_btc,
+            'cumulative_fund_units': cumulative_fund_units,
+            'cumulative_invested': monthly_investment * (month_idx + 1)
         })
     
     if not purchase_records:
@@ -227,37 +234,75 @@ def calculate_strategy_2_dca(crypto_data, fund_data, initial_amount, loan_pct, i
     if merged.empty:
         return pd.DataFrame()
     
-    # Calculate portfolio components for each date
-    merged['crypto_value'] = total_crypto_holdings * merged['price_crypto']
-    merged['fund_value'] = total_fund_holdings_usd * (merged['price_fund'] / VND_TO_USD)
-    
-    # Calculate accumulated debt (compound annually for each loan)
-    merged['debt'] = 0
-    for record in purchase_records:
-        loan_date = record['date']
-        loan_amount = record['loan_amount']
+    # Calculate portfolio components for each date with PROGRESSIVE holdings
+    results = []
+    for _, row in merged.iterrows():
+        current_date = row['date']
+        current_btc_price = row['price_crypto']
+        current_fund_price = row['price_fund']
         
-        # Calculate years elapsed since this specific loan
-        years_elapsed = (merged['date'] - loan_date).dt.days / 365.25
-        years_elapsed = years_elapsed.clip(lower=0)  # No negative years
+        # Find how many DCA purchases have been completed by this date
+        completed_purchases = [p for p in purchase_records if p['date'] <= current_date]
         
-        # Add compounded debt from this loan
-        merged['debt'] += loan_amount * ((1 + interest_rate / 100) ** years_elapsed)
+        if completed_purchases:
+            latest_purchase = completed_purchases[-1]
+            current_btc_holdings = latest_purchase['cumulative_btc']
+            current_fund_units = latest_purchase['cumulative_fund_units']
+            invested_amount = latest_purchase['cumulative_invested']
+            dca_months_completed = latest_purchase['month_idx']
+        else:
+            current_btc_holdings = 0
+            current_fund_units = 0
+            invested_amount = 0
+            dca_months_completed = 0
+        
+        # Cash = uninvested amount
+        cash = initial_amount - invested_amount
+        
+        # Crypto value at current price
+        crypto_value = current_btc_holdings * current_btc_price
+        
+        # Fund value at current price (convert VND to USD)
+        fund_value = current_fund_units * (current_fund_price / VND_TO_USD)
+        
+        # Debt with interest (each loan compounds from its own date)
+        debt = 0
+        for p in completed_purchases:
+            years_elapsed = (current_date - p['date']).days / 365.25
+            if years_elapsed >= 0:
+                debt += p['loan_amount'] * ((1 + interest_rate / 100) ** years_elapsed)
+        
+        # Total value includes cash
+        total_value = crypto_value + fund_value - debt + cash
+        
+        results.append({
+            'date': current_date,
+            'crypto_value': crypto_value,
+            'fund_value': fund_value,
+            'debt': debt,
+            'cash': cash,
+            'total_value': total_value,
+            'price_crypto': current_btc_price,
+            'btc_holdings': current_btc_holdings,
+            'dca_months_completed': dca_months_completed
+        })
     
-    # Total portfolio value
-    merged['total_value'] = merged['crypto_value'] + merged['fund_value'] - merged['debt']
+    result_df = pd.DataFrame(results)
     
-    # Calculate average BTC buy price (weighted average)
-    total_btc_cost = sum([record['btc_purchased'] * record['btc_price'] for record in purchase_records])
-    avg_btc_price = total_btc_cost / total_crypto_holdings if total_crypto_holdings > 0 else 0
-    merged['avg_btc_buy_price'] = avg_btc_price
+    # Calculate average BTC buy price (weighted average) after all purchases
+    if purchase_records:
+        total_btc_cost = sum([p['btc_purchased'] * p['btc_price'] for p in purchase_records])
+        final_btc_holdings = purchase_records[-1]['cumulative_btc']
+        avg_btc_price = total_btc_cost / final_btc_holdings if final_btc_holdings > 0 else 0
+        result_df['avg_btc_buy_price'] = avg_btc_price
+    else:
+        result_df['avg_btc_buy_price'] = 0
     
     # Store initial value for CAGR calculation
-    merged['initial_value'] = initial_amount
-    merged['start_date'] = first_purchase_date
-    merged['price_crypto'] = merged['price_crypto']  # Keep for charts
+    result_df['initial_value'] = initial_amount
+    result_df['start_date'] = first_purchase_date
     
-    return merged[['date', 'crypto_value', 'fund_value', 'debt', 'total_value', 'price_crypto', 'avg_btc_buy_price', 'initial_value', 'start_date']]
+    return result_df[['date', 'crypto_value', 'fund_value', 'debt', 'cash', 'total_value', 'price_crypto', 'avg_btc_buy_price', 'initial_value', 'start_date']]
 
 def calculate_strategy_3(fund_data, initial_amount, start_date, end_date=None):
     """
@@ -331,6 +376,38 @@ def calculate_yearly_drawdown(data):
         })
     
     return pd.DataFrame(yearly_drawdowns)
+
+def calculate_monthly_returns(data):
+    """
+    Calculate monthly returns from strategy data
+    
+    Args:
+        data: DataFrame with 'date' and 'total_value' columns
+    
+    Returns:
+        DataFrame with 'year', 'month', 'month_return' columns
+    """
+    if data.empty:
+        return pd.DataFrame()
+    
+    data = data.copy()
+    data['date'] = pd.to_datetime(data['date'])
+    data = data.sort_values('date')
+    
+    # Get month-end values
+    data['year_month'] = data['date'].dt.to_period('M')
+    monthly_data = data.groupby('year_month').agg({
+        'total_value': 'last',
+        'date': 'last'
+    }).reset_index()
+    
+    # Calculate monthly returns
+    monthly_data['month_return'] = monthly_data['total_value'].pct_change() * 100
+    monthly_data['year'] = monthly_data['year_month'].dt.year
+    monthly_data['month'] = monthly_data['year_month'].dt.month
+    
+    return monthly_data[['year', 'month', 'month_return']].dropna()
+
 
 def calculate_rolling_cagr(data, years=4, crypto_data=None, fund_data=None):
     """
@@ -639,26 +716,33 @@ if strategy_1.empty or strategy_2.empty or strategy_3.empty:
     st.error("Unable to calculate strategies. Please check your date selection.")
     st.stop()
 
-# Calculate rolling CAGR (pass crypto_data/fund_data for price information)
-rolling_cagr_4y_s1 = calculate_rolling_cagr(strategy_1, years=4, crypto_data=crypto_data)
-rolling_cagr_4y_s2 = calculate_rolling_cagr(strategy_2, years=4, crypto_data=crypto_data)
-rolling_cagr_4y_s3 = calculate_rolling_cagr(strategy_3, years=4, fund_data=fund_data)
 
-rolling_cagr_2y_s1 = calculate_rolling_cagr(strategy_1, years=2, crypto_data=crypto_data)
-rolling_cagr_2y_s2 = calculate_rolling_cagr(strategy_2, years=2, crypto_data=crypto_data)
-rolling_cagr_2y_s3 = calculate_rolling_cagr(strategy_3, years=2, fund_data=fund_data)
+# DEBUG MODE - Skip to Debug Table section at the end
+if DEBUG_MODE:
+    st.warning("⚠️ DEBUG MODE ON - Showing only Debug Table (scroll to bottom)")
+    st.stop()  # Stop here and skip all other sections
+else:
+    # Calculate rolling CAGR (pass crypto_data/fund_data for price information)
+    rolling_cagr_4y_s1 = calculate_rolling_cagr(strategy_1, years=4, crypto_data=crypto_data)
+    rolling_cagr_4y_s2 = calculate_rolling_cagr(strategy_2, years=4, crypto_data=crypto_data)
+    rolling_cagr_4y_s3 = calculate_rolling_cagr(strategy_3, years=4, fund_data=fund_data)
 
-rolling_cagr_1y_s1 = calculate_rolling_cagr(strategy_1, years=1, crypto_data=crypto_data)
-rolling_cagr_1y_s2 = calculate_rolling_cagr(strategy_2, years=1, crypto_data=crypto_data)
-rolling_cagr_1y_s3 = calculate_rolling_cagr(strategy_3, years=1, fund_data=fund_data)
+    rolling_cagr_2y_s1 = calculate_rolling_cagr(strategy_1, years=2, crypto_data=crypto_data)
+    rolling_cagr_2y_s2 = calculate_rolling_cagr(strategy_2, years=2, crypto_data=crypto_data)
+    rolling_cagr_2y_s3 = calculate_rolling_cagr(strategy_3, years=2, fund_data=fund_data)
 
-# Rolling CAGR Charts
-st.subheader("📈 Rolling CAGR Comparison")
+    rolling_cagr_1y_s1 = calculate_rolling_cagr(strategy_1, years=1, crypto_data=crypto_data)
+    rolling_cagr_1y_s2 = calculate_rolling_cagr(strategy_2, years=1, crypto_data=crypto_data)
+    rolling_cagr_1y_s3 = calculate_rolling_cagr(strategy_3, years=1, fund_data=fund_data)
 
-# 4-Year Rolling CAGR with Bitcoin Price
-st.markdown("**4-Year Rolling CAGR**")
+# Skip charts section if in DEBUG_MODE
+if not DEBUG_MODE:
+    st.subheader("📈 Rolling CAGR Comparison")
 
-fig_4y = make_subplots(
+    # 4-Year Rolling CAGR with Bitcoin Price
+    st.markdown("**4-Year Rolling CAGR**")
+
+    fig_4y = make_subplots(
     rows=2, cols=1,
     shared_xaxes=True,
     vertical_spacing=0.05,
@@ -1167,6 +1251,7 @@ if heatmap_start < heatmap_end_for_starts:
 else:
     st.info("Not enough historical data to generate heatmap. Need at least 1 year of data.")
 
+
 # Yearly Drawdown Analysis
 st.markdown("---")
 st.subheader("📉 Yearly Maximum Drawdown Analysis")
@@ -1279,205 +1364,251 @@ if not drawdown_s1.empty and not drawdown_s2.empty and not drawdown_s3.empty:
 else:
     st.info("Not enough data to calculate yearly drawdowns.")
 
-# Footer
-st.markdown("---")
 
-# Debug Table Section
+
+# ========== MONTHLY PORTFOLIO DEBUG TABLE (Final Section) ==========
+st.markdown("---")
 st.subheader("🔍 Monthly Portfolio Debug Table")
-st.markdown("Detailed monthly breakdown of portfolio metrics for all strategies.")
-
-# Display initial investment and strategy descriptions
-st.info(f"""
-**Initial Investment Amount:** ${initial_amount:,.0f} USD
-
-**Strategies:**
-- **S1 (Crypto-Backed VN Fund):** 
-  - Invest ALL ${initial_amount:,.0f} in {crypto_asset} at start
-  - Example: ${initial_amount:,.0f} / ${crypto_data[crypto_data['date'] >= start_date].iloc[0]['price']:,.0f} = {initial_amount / crypto_data[crypto_data['date'] >= start_date].iloc[0]['price']:.2f} BTC
-  - Borrow {loan_pct}% of initial amount (${initial_amount * loan_pct / 100:,.0f}) to invest in {fund_asset}
-  - BTC holdings remain CONSTANT throughout
-
-- **S2 (DCA-Crypto-Backed VN Fund):** 
-  - Monthly DCA: ${initial_amount / 12:,.0f} per month for 12 months
-  - Example Month 1: ${initial_amount / 12:,.0f} / ${crypto_data[crypto_data['date'] >= start_date].iloc[0]['price']:,.0f} = {(initial_amount / 12) / crypto_data[crypto_data['date'] >= start_date].iloc[0]['price']:.2f} BTC
-  - Borrow {loan_pct}% of EACH monthly investment (${initial_amount / 12 * loan_pct / 100:,.0f} per month) to invest in {fund_asset}
-  - BTC holdings INCREASE each month via DCA
-
-- **S3 (Simple VN Fund):** 
-  - Invest ${initial_amount:,.0f} directly in {fund_asset}
-  - No crypto, no leverage
-""")
-
-# Date picker for debug start date
-col1, col2 = st.columns(2)
-with col1:
-    debug_start_date = st.date_input(
-        "Debug Start Date",
-        value=start_date,
-        min_value=start_date,
-        max_value=end_date if end_date else datetime.now().date(),
-        key="debug_start_date"
-    )
-with col2:
-    debug_months = st.slider("Number of months to display", min_value=1, max_value=24, value=12)
-
-# Filter data based on debug start date
-debug_start = pd.to_datetime(debug_start_date)
-debug_end = debug_start + pd.DateOffset(months=debug_months)
-
-# Filter strategy data
-s1_debug = strategy_1[(strategy_1['date'] >= debug_start) & (strategy_1['date'] <= debug_end)].copy()
-s2_debug = strategy_2[(strategy_2['date'] >= debug_start) & (strategy_2['date'] <= debug_end)].copy()
-s3_debug = strategy_3[(strategy_3['date'] >= debug_start) & (strategy_3['date'] <= debug_end)].copy()
-
-if not s1_debug.empty and not s2_debug.empty and not s3_debug.empty:
-    # Calculate S1 BTC holdings (constant - bought at ACTUAL strategy start)
-    # Use the first row's crypto_value and price to get the actual BTC holdings
-    first_row_s1 = strategy_1.iloc[0]
-    first_btc_price = crypto_data[crypto_data['date'] <= first_row_s1['date']].iloc[-1]['price']
-    s1_btc_holdings_constant = first_row_s1['crypto_value'] / first_btc_price
     
-    # Resample to monthly (end of month)
-    s1_monthly = s1_debug.set_index('date').resample('ME').last().reset_index()
-    s2_monthly = s2_debug.set_index('date').resample('ME').last().reset_index()
-    s3_monthly = s3_debug.set_index('date').resample('ME').last().reset_index()
-    
-    # Create debug table
-    debug_data = []
-    
-    for idx in range(min(len(s1_monthly), len(s2_monthly), len(s3_monthly))):
-        row_s1 = s1_monthly.iloc[idx]
-        row_s2 = s2_monthly.iloc[idx]
-        row_s3 = s3_monthly.iloc[idx]
+
+debug_start_date_main = st.date_input(
+    "Debug Start Date",
+    value=start_date,
+    min_value=min_date.date(),
+    max_value=end_date.date() if hasattr(end_date, 'date') else end_date,
+    key="debug_start_date_main"
+)
+
+# Convert debug_start_date to datetime
+debug_start_main = pd.to_datetime(debug_start_date_main)
+
+# Calculate number of months to display (from debug_start to end_date)
+debug_end_main = end_date
+months_diff_main = (debug_end_main.year - debug_start_main.year) * 12 + (debug_end_main.month - debug_start_main.month)
+display_months_main = max(1, months_diff_main + 1)
+
+# Get the ACTUAL first BTC price and date from debug_start
+first_btc_data_main = crypto_data[crypto_data['date'] >= debug_start_main]
+
+if not first_btc_data_main.empty:
+        actual_first_date_main = first_btc_data_main.iloc[0]['date']
+        initial_btc_price_main = first_btc_data_main.iloc[0]['price']
+        dca_installments_main = 12
+        monthly_investment_main = initial_amount / dca_installments_main
         
-        # Get BTC price for this date
-        btc_price_data = crypto_data[crypto_data['date'] <= row_s1['date']]
-        btc_price = btc_price_data.iloc[-1]['price'] if not btc_price_data.empty else 0
+        # S1 calculations
+        s1_btc_holdings_main = initial_amount / initial_btc_price_main
+        s1_loan_amount_main = initial_amount * (loan_pct / 100)
         
-        # Get fund price for this date (NAV per unit in VND)
-        fund_price_data = fund_data[fund_data['date'] <= row_s1['date']]
-        fund_nav_vnd = fund_price_data.iloc[-1]['price'] if not fund_price_data.empty else 0
+        # Calculate S2 DCA purchases
+        s2_purchase_records_main = []
+        cumulative_btc_main = 0
+        cumulative_loan_main = 0
+        cumulative_fund_units_main = 0
         
-        # S1: BTC holdings is constant (bought at start)
-        s1_btc_holdings = s1_btc_holdings_constant
-        
-        # S2: BTC holdings changes over time (DCA)
-        s2_btc_holdings = row_s2['crypto_value'] / btc_price if btc_price > 0 else 0
-        
-        # Get debt values
-        s1_debt = row_s1.get('debt', 0)
-        s2_debt = row_s2.get('debt', 0)
-        
-        # Calculate liquidation price for Strategy 2 only
-        liquidation_threshold = 0.825
-        s2_liq_price = (s2_debt / (s2_btc_holdings * liquidation_threshold)) if s2_btc_holdings > 0 else 0
-        
-        debug_row = {
-            'Date': row_s1['date'].strftime('%Y-%m'),
-            'BTC Price': f"${btc_price:,.0f}",
+        for month_idx in range(dca_installments_main):
+            purchase_date = actual_first_date_main + timedelta(days=month_idx * 30)
+            crypto_at_purchase = crypto_data[crypto_data['date'] >= purchase_date]
+            if crypto_at_purchase.empty:
+                break
             
-            # Strategy 1
-            'S1: BTC Holdings': f"{s1_btc_holdings:.4f}",
-            'S1: Crypto Value': f"${row_s1['crypto_value']:,.0f}",
-            'S1: Fund Value': f"${row_s1['fund_value']:,.0f}",
-            'S1: Fund NAV (VND)': f"{fund_nav_vnd:,.0f}",
-            'S1: Debt': f"${s1_debt:,.0f}",
-            'S1: Valuation': f"${row_s1['total_value']:,.0f}",
+            btc_price_at_purchase = crypto_at_purchase.iloc[0]['price']
+            actual_purchase_date = crypto_at_purchase.iloc[0]['date']
+            btc_purchased = monthly_investment_main / btc_price_at_purchase
+            cumulative_btc_main += btc_purchased
+            loan_this_month = monthly_investment_main * (loan_pct / 100)
+            cumulative_loan_main += loan_this_month
             
-            # Strategy 2
-            'S2: BTC Holdings': f"{s2_btc_holdings:.4f}",
-            'S2: Crypto Value': f"${row_s2['crypto_value']:,.0f}",
-            'S2: Fund Value': f"${row_s2['fund_value']:,.0f}",
-            'S2: Fund NAV (VND)': f"{fund_nav_vnd:,.0f}",
-            'S2: Debt': f"${s2_debt:,.0f}",
-            'S2: Liq Price': f"${s2_liq_price:,.0f}",
-            'S2: Valuation': f"${row_s2['total_value']:,.0f}",
+            fund_at_purchase = fund_data[fund_data['date'] >= actual_purchase_date]
+            if not fund_at_purchase.empty:
+                fund_price = fund_at_purchase.iloc[0]['price']
+                fund_price_usd = fund_price / VND_TO_USD
+                fund_units_purchased = loan_this_month / fund_price_usd
+                cumulative_fund_units_main += fund_units_purchased
             
-            # Strategy 3
-            'S3: Fund Value': f"${row_s3['total_value']:,.0f}",
-            'S3: Fund NAV (VND)': f"{fund_nav_vnd:,.0f}",
-            'S3: Valuation': f"${row_s3['total_value']:,.0f}",
+            s2_purchase_records_main.append({
+                'month_idx': month_idx + 1,
+                'date': actual_purchase_date,
+                'btc_price': btc_price_at_purchase,
+                'btc_purchased': btc_purchased,
+                'cumulative_btc': cumulative_btc_main,
+                'loan_amount': loan_this_month,
+                'cumulative_loan': cumulative_loan_main,
+                'cumulative_fund_units': cumulative_fund_units_main
+            })
+        
+        # Build debug table data
+        debug_data_main = []
+        first_fund_data_main = fund_data[fund_data['date'] >= actual_first_date_main]
+        initial_fund_price_main = first_fund_data_main.iloc[0]['price'] if not first_fund_data_main.empty else 0
+        
+        # Add initial row
+        initial_row_main = {
+            'Date': actual_first_date_main.strftime('%Y-%m-%d') + ' (Start)',
+            'BTC Price (End)': f"${initial_btc_price_main:,.0f}",
+            'Fund NAV (VND)': f"{initial_fund_price_main:,.0f}",
+            'S1: BTC Holdings': f"{s1_btc_holdings_main:.4f}",
+            'S1: Avg BTC Price': f"${initial_btc_price_main:,.0f}",
+            'S1: Crypto Value': f"${initial_amount:,.0f}",
+            'S1: Fund Value': f"$0",
+            'S1: Debt': f"$0",
+            'S1: Valuation': f"${initial_amount:,.0f}",
+            'S1: CAGR': "0.0%",
+            'S2: BTC Holdings': "0.0000",
+            'S2: Avg BTC Price': "$0",
+            'S2: Crypto Value': f"$0",
+            'S2: Fund Value': f"$0",
+            'S2: Cash': f"${initial_amount:,.0f}",
+            'S2: Debt': f"$0",
+            'S2: Valuation': f"${initial_amount:,.0f}",
+            'S2: CAGR': "0.0%",
+            'S3: Valuation': f"${initial_amount:,.0f}",
+            'S3: CAGR': "0.0%",
+            '_is_initial': True
         }
+        debug_data_main.append(initial_row_main)
         
-        debug_data.append(debug_row)
-    
-    df_debug = pd.DataFrame(debug_data)
-    
-    # Style the table - highlight Valuation columns with dark blue background
-    def highlight_valuation(s):
-        if 'Valuation' in s.name:
-            return ['background-color: rgba(61, 157, 243, 0.2)'] * len(s)
-        return [''] * len(s)
-    
-    styled_df = df_debug.style.apply(highlight_valuation)
-    
-    st.dataframe(styled_df, use_container_width=True, hide_index=True)
-    
-    # Add explanation
-    st.markdown("""
-    **Column Explanations:**
-    - **BTC Price**: Current Bitcoin price (USD)
-    - **S1/S2 BTC Holdings**: Amount of BTC held (S1 is constant, S2 changes via DCA)
-    - **Crypto Value**: Current value of crypto holdings (USD)
-    - **Fund Value**: Current value of VN fund holdings (USD)
-    - **Fund NAV (VND)**: Price per unit of fund certificate (VND per CCQ)
-    - **Debt**: Accumulated debt from loans (USD)
-    - **Valuation**: Total portfolio value = Crypto Value + Fund Value - Debt (USD) - *highlighted in blue*
-    - **Liq Price**: Liquidation price for Strategy 2 (price at which position would be liquidated)
-    """)
-else:
-    st.info("No data available for selected debug period.")
-
-st.markdown("---")
-
-# Liquidation Calculator Section
-st.subheader("⚠️ Liquidation Risk Calculator")
-st.markdown("""Calculate liquidation price based on AAVE liquidation mechanics.  
-**Liquidation occurs when Health Factor < 1.0**""")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("**Current Position:**")
-    current_crypto_value = strategy_1.iloc[-1]['crypto_value']
-    current_debt = strategy_1.iloc[-1]['debt']
-    current_price = strategy_1.iloc[-1]['price_crypto']
-    current_liq_price = strategy_1.iloc[-1]['liquidation_price']
-    
-    st.metric("Crypto Collateral", f"${current_crypto_value:,.0f}")
-    st.metric("Total Debt", f"${current_debt:,.0f}")
-    st.metric(f"Current {crypto_asset} Price", f"${current_price:,.0f}")
-
-with col2:
-    st.markdown("**Liquidation Metrics:**")
-    st.metric("Liquidation Price", f"${current_liq_price:,.0f}")
-    
-    price_drop_pct = ((current_price - current_liq_price) / current_price) * 100
-    st.metric("Price Drop to Liquidation", f"{price_drop_pct:.1f}%")
-    
-    # Calculate current health factor
-    LIQUIDATION_THRESHOLD = 0.80
-    crypto_holdings = current_crypto_value / current_price
-    current_hf = (current_price * crypto_holdings * LIQUIDATION_THRESHOLD) / current_debt
-    st.metric("Current Health Factor", f"{current_hf:.2f}")
-
-with col3:
-    st.markdown("**Risk Assessment:**")
-    if current_hf < 1.0:
-        st.error("🚨 **CRITICAL**: Position at risk of liquidation!")
-    elif current_hf < 1.10:
-        st.warning("⚠️ **HIGH RISK**: Close to liquidation threshold")
-    elif current_hf < 1.30:
-        st.warning("⚡ **MODERATE RISK**: Monitor position closely")
-    else:
-        st.success("✅ **LOW RISK**: Healthy position")
-    
-    # Show if any liquidation occurred in the period
-    liquidated_days = len(strategy_1[strategy_1['price_crypto'] < strategy_1['liquidation_price']])
-    if liquidated_days > 0:
-        st.error(f"⚠️ Liquidation occurred on **{liquidated_days} days** during this period")
-    else:
-        st.success("✅ No liquidation events in this period")
+        for month_idx in range(display_months_main):
+            target_date = actual_first_date_main + pd.DateOffset(months=month_idx)
+            month_end = target_date + pd.offsets.MonthEnd(0)
+            
+            btc_at_end = crypto_data[crypto_data['date'] <= month_end]
+            if btc_at_end.empty:
+                continue
+            btc_price_end = btc_at_end.iloc[-1]['price']
+            actual_month_end = btc_at_end.iloc[-1]['date']
+            
+            fund_at_end = fund_data[fund_data['date'] <= month_end]
+            fund_nav_vnd = fund_at_end.iloc[-1]['price'] if not fund_at_end.empty else 0
+            
+            # S1 calculations
+            s1_crypto_value = s1_btc_holdings_main * btc_price_end
+            if not first_fund_data_main.empty:
+                s1_fund_units = s1_loan_amount_main / (initial_fund_price_main / VND_TO_USD)
+                s1_fund_value = s1_fund_units * (fund_nav_vnd / VND_TO_USD)
+            else:
+                s1_fund_value = 0
+            
+            years_elapsed = (actual_month_end - actual_first_date_main).days / 365.25
+            s1_debt = s1_loan_amount_main * ((1 + interest_rate / 100) ** years_elapsed)
+            s1_valuation = s1_crypto_value + s1_fund_value - s1_debt
+            
+            # S2 calculations
+            dca_months_completed = min(month_idx + 1, len(s2_purchase_records_main))
+            
+            if dca_months_completed > 0 and dca_months_completed <= len(s2_purchase_records_main):
+                s2_record = s2_purchase_records_main[dca_months_completed - 1]
+                s2_btc_holdings = s2_record['cumulative_btc']
+                s2_cumulative_fund_units = s2_record['cumulative_fund_units']
+                s2_cash = initial_amount * max(0, (dca_installments_main - dca_months_completed)) / dca_installments_main
+                s2_crypto_value = s2_btc_holdings * btc_price_end
+                s2_fund_value = s2_cumulative_fund_units * (fund_nav_vnd / VND_TO_USD)
+                
+                s2_debt = 0
+                for i in range(dca_months_completed):
+                    rec = s2_purchase_records_main[i]
+                    years = (actual_month_end - rec['date']).days / 365.25
+                    if years >= 0:
+                        s2_debt += rec['loan_amount'] * ((1 + interest_rate / 100) ** years)
+                
+                s2_valuation = s2_crypto_value + s2_fund_value - s2_debt + s2_cash
+                total_btc_cost = sum([s2_purchase_records_main[i]['btc_price'] * s2_purchase_records_main[i]['btc_purchased'] 
+                                     for i in range(dca_months_completed)])
+                s2_avg_btc_price = total_btc_cost / s2_btc_holdings if s2_btc_holdings > 0 else 0
+            else:
+                s2_btc_holdings = 0
+                s2_crypto_value = 0
+                s2_fund_value = 0
+                s2_debt = 0
+                s2_cash = initial_amount
+                s2_valuation = s2_cash
+                s2_avg_btc_price = 0
+            
+            # S3 calculations
+            if not first_fund_data_main.empty:
+                s3_fund_units = initial_amount / (initial_fund_price_main / VND_TO_USD)
+                s3_fund_value = s3_fund_units * (fund_nav_vnd / VND_TO_USD)
+                s3_valuation = s3_fund_value
+            else:
+                s3_fund_value = 0
+                s3_valuation = 0
+            
+            # Calculate CAGR
+            years_for_cagr = (actual_month_end - actual_first_date_main).days / 365.25
+            if years_for_cagr > 0:
+                s1_cagr = (((s1_valuation / initial_amount) ** (1 / years_for_cagr)) - 1) * 100
+                s2_cagr = (((s2_valuation / initial_amount) ** (1 / years_for_cagr)) - 1) * 100
+                s3_cagr = (((s3_valuation / initial_amount) ** (1 / years_for_cagr)) - 1) * 100
+            else:
+                s1_cagr = 0
+                s2_cagr = 0
+                s3_cagr = 0
+            
+            debug_row_main = {
+                'Date': actual_month_end.strftime('%Y-%m'),
+                'BTC Price (End)': f"${btc_price_end:,.0f}",
+                'Fund NAV (VND)': f"{fund_nav_vnd:,.0f}",
+                'S1: BTC Holdings': f"{s1_btc_holdings_main:.4f}",
+                'S1: Avg BTC Price': f"${initial_btc_price_main:,.0f}",
+                'S1: Crypto Value': f"${s1_crypto_value:,.0f}",
+                'S1: Fund Value': f"${s1_fund_value:,.0f}",
+                'S1: Debt': f"${s1_debt:,.0f}",
+                'S1: Valuation': f"${s1_valuation:,.0f}",
+                'S1: CAGR': f"{s1_cagr:.1f}%",
+                'S2: BTC Holdings': f"{s2_btc_holdings:.4f}",
+                'S2: Avg BTC Price': f"${s2_avg_btc_price:,.0f}",
+                'S2: Crypto Value': f"${s2_crypto_value:,.0f}",
+                'S2: Fund Value': f"${s2_fund_value:,.0f}",
+                'S2: Cash': f"${s2_cash:,.0f}",
+                'S2: Debt': f"${s2_debt:,.0f}",
+                'S2: Valuation': f"${s2_valuation:,.0f}",
+                'S2: CAGR': f"{s2_cagr:.1f}%",
+                'S3: Valuation': f"${s3_valuation:,.0f}",
+                'S3: CAGR': f"{s3_cagr:.1f}%",
+                '_is_initial': False
+            }
+            debug_data_main.append(debug_row_main)
+        
+        if debug_data_main:
+            df_debug_main = pd.DataFrame(debug_data_main)
+            
+            # Show first 30 and last 30 rows
+            total_rows = len(df_debug_main)
+            if total_rows > 60:
+                df_first_30 = df_debug_main.head(30)
+                df_last_30 = df_debug_main.tail(30)
+                separator = {col: '...' for col in df_debug_main.columns if col != '_is_initial'}
+                separator['_is_initial'] = False
+                df_separator = pd.DataFrame([separator])
+                df_display_main = pd.concat([df_first_30, df_separator, df_last_30], ignore_index=True)
+            else:
+                df_display_main = df_debug_main
+            
+            is_initial_flags_main = df_display_main['_is_initial'].copy()
+            df_display_main = df_display_main.drop(columns=['_is_initial'])
+            
+            def highlight_columns_main(s):
+                styles = []
+                for idx in range(len(s)):
+                    if idx < len(is_initial_flags_main) and is_initial_flags_main.iloc[idx]:
+                        styles.append('background-color: rgba(255, 255, 0, 0.2)')
+                    elif 'Valuation' in s.name:
+                        styles.append('background-color: rgba(61, 157, 243, 0.2)')
+                    elif 'CAGR' in s.name:
+                        styles.append('background-color: rgba(34, 139, 34, 0.3)')
+                    else:
+                        styles.append('')
+                return styles
+            
+            column_config_main = {col: st.column_config.TextColumn(col, disabled=True) 
+                                 for col in df_display_main.columns}
+            
+            st.dataframe(
+                df_display_main.style.apply(highlight_columns_main), 
+                use_container_width=True, 
+                hide_index=True,
+                column_config=column_config_main
+            )
 
 st.markdown("---")
 st.markdown("""
