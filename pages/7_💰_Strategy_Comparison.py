@@ -21,7 +21,7 @@ VND_TO_USD = 26000
 # DEBUG MODE - Set to True to show only Debug Table section
 DEBUG_MODE = False
 
-# @st.cache_data  # DISABLED FOR DEBUG
+@st.cache_data(ttl=3600)  # Cache for 1 hour
 def get_available_assets(db_path="db/investment_data.db"):
     """Get available cryptocurrencies and VN funds"""
     conn = sqlite3.connect(db_path)
@@ -48,7 +48,7 @@ def get_available_assets(db_path="db/investment_data.db"):
     
     return crypto_df['asset_code'].tolist(), fund_df['asset_code'].tolist()
 
-# @st.cache_data  # DISABLED FOR DEBUG
+@st.cache_data(ttl=3600)  # Cache for 1 hour
 def get_price_data(asset_codes, db_path="db/investment_data.db"):
     """Get price data for specified assets"""
     conn = sqlite3.connect(db_path)
@@ -408,10 +408,159 @@ def calculate_monthly_returns(data):
     
     return monthly_data[['year', 'month', 'month_return']].dropna()
 
+@st.cache_data(ttl=3600, show_spinner=False)  # Cache for 1 hour
+def calculate_rolling_cagr_for_strategy(_crypto_data, _fund_data, strategy_type, years, 
+                                        initial_amount, loan_pct, interest_rate, 
+                                        start_date_str, end_date_str,
+                                        crypto_code, fund_code, sampling_days=7):
+    """
+    Calculate rolling CAGR by recalculating the strategy from each rolling start date.
+    
+    This is the CORRECT way to calculate rolling CAGR:
+    - For each date in the data, look back 'years' years to find the start date
+    - Recalculate the strategy from that start date to the current date
+    - Compare the final valuation with the initial amount ($10M) to get CAGR
+    
+    Args:
+        _crypto_data: DataFrame with crypto prices (underscore prefix for cache hashing)
+        _fund_data: DataFrame with fund prices (underscore prefix for cache hashing)
+        strategy_type: 1, 2, or 3 (S1=lump sum crypto, S2=DCA crypto, S3=fund only)
+        years: Rolling period in years
+        initial_amount: Initial investment amount
+        loan_pct: Loan percentage
+        interest_rate: Annual interest rate
+        start_date_str: The start date as string (chart shows data from this date)
+        end_date_str: The end date as string for cache key (converted to datetime inside)
+        crypto_code: Crypto asset code for cache key
+        fund_code: Fund asset code for cache key
+        sampling_days: Calculate CAGR every N days (default=7 for weekly sampling)
+                      Set to 1 for daily (slower but more precise)
+    
+    Returns:
+        DataFrame with 'date', 'rolling_cagr', 'from_date', 'to_date', 'from_price', 'to_price', 'avg_dca_price' columns
+    """
+    # Convert references for internal use
+    crypto_data = _crypto_data
+    fund_data = _fund_data
+    start_date = pd.to_datetime(start_date_str)
+    end_date = pd.to_datetime(end_date_str)
+    
+    rolling_cagr_list = []
+    days_window = int(years * 365.25)
+    
+    # Get all unique dates and apply sampling
+    all_dates = pd.Series(crypto_data['date'].sort_values().unique())
+    
+    # Sample every N days to reduce computation time
+    # For 7 days sampling: ~3000 daily points -> ~400 weekly points
+    if sampling_days > 1:
+        sampled_dates = all_dates[::sampling_days].tolist()
+        # Always include the last date for accuracy
+        last_date = all_dates.iloc[-1]
+        if last_date not in sampled_dates:
+            sampled_dates.append(last_date)
+    else:
+        sampled_dates = all_dates.tolist()
+    
+    # Pre-sort data for faster lookups
+    crypto_sorted = crypto_data.sort_values('date').reset_index(drop=True)
+    fund_sorted = fund_data.sort_values('date').reset_index(drop=True)
+    crypto_min_date = crypto_sorted['date'].min()
+    fund_min_date = fund_sorted['date'].min()
+    
+    for current_date in sampled_dates:
+        current_date = pd.Timestamp(current_date)
+        
+        # Skip dates outside the user-selected range [start_date, end_date]
+        if current_date < start_date or current_date > end_date:
+            continue
+        
+        # Find the rolling start date (years ago)
+        from_date = current_date - timedelta(days=days_window)
+        
+        # Check if we have enough data for this rolling window
+        if from_date < crypto_min_date or from_date < fund_min_date:
+            continue
+        
+        # Recalculate the strategy from from_date to current_date
+        if strategy_type == 1:
+            strategy_data = calculate_strategy_1(crypto_sorted, fund_sorted, initial_amount, 
+                                                loan_pct, interest_rate, from_date, current_date)
+        elif strategy_type == 2:
+            strategy_data = calculate_strategy_2_dca(crypto_sorted, fund_sorted, initial_amount, 
+                                                    loan_pct, interest_rate, from_date, current_date)
+        else:  # strategy_type == 3
+            strategy_data = calculate_strategy_3(fund_sorted, initial_amount, from_date, current_date)
+        
+        if strategy_data.empty:
+            continue
+        
+        # Get final valuation
+        final_row = strategy_data.iloc[-1]
+        final_value = final_row['total_value']
+        actual_from_date = strategy_data.iloc[0]['date']
+        
+        # Calculate actual years elapsed
+        actual_days = (current_date - actual_from_date).days
+        actual_years = actual_days / 365.25
+        
+        if actual_years > 0 and initial_amount > 0:
+            # CAGR = ((final_value / initial_amount) ^ (1/years)) - 1
+            cagr = (((final_value / initial_amount) ** (1 / actual_years)) - 1) * 100
+            
+            # Get crypto/fund prices for tooltip (use pre-sorted data)
+            from_price = None
+            to_price = None
+            avg_dca_price = None
+            
+            if strategy_type in [1, 2]:
+                # Get crypto prices using binary search for speed
+                from_idx = crypto_sorted['date'].searchsorted(actual_from_date)
+                to_idx = crypto_sorted['date'].searchsorted(current_date, side='right') - 1
+                if from_idx < len(crypto_sorted) and to_idx >= 0:
+                    from_price = crypto_sorted.iloc[from_idx]['price']
+                    to_price = crypto_sorted.iloc[to_idx]['price']
+                
+                # Calculate avg DCA price for Strategy 2
+                if strategy_type == 2:
+                    monthly_prices = []
+                    for month_idx in range(12):
+                        purchase_date = actual_from_date + timedelta(days=month_idx * 30)
+                        idx = crypto_sorted['date'].searchsorted(purchase_date)
+                        if idx < len(crypto_sorted):
+                            monthly_prices.append(crypto_sorted.iloc[idx]['price'])
+                    
+                    if monthly_prices:
+                        # Harmonic mean for DCA (equal $ investment each month)
+                        avg_dca_price = len(monthly_prices) / sum(1/p for p in monthly_prices)
+            else:
+                # Get fund prices for Strategy 3
+                from_idx = fund_sorted['date'].searchsorted(actual_from_date)
+                to_idx = fund_sorted['date'].searchsorted(current_date, side='right') - 1
+                if from_idx < len(fund_sorted) and to_idx >= 0:
+                    from_price = fund_sorted.iloc[from_idx]['price']
+                    to_price = fund_sorted.iloc[to_idx]['price']
+            
+            rolling_cagr_list.append({
+                'date': current_date,
+                'rolling_cagr': cagr,
+                'from_date': actual_from_date,
+                'to_date': current_date,
+                'from_price': from_price,
+                'to_price': to_price,
+                'avg_dca_price': avg_dca_price
+            })
+    
+    return pd.DataFrame(rolling_cagr_list)
+
 
 def calculate_rolling_cagr(data, years=4, crypto_data=None, fund_data=None):
     """
-    Calculate rolling CAGR for a strategy
+    Calculate rolling CAGR for a strategy (LEGACY - kept for backward compatibility)
+    
+    WARNING: This function has a bug - it compares values within a single strategy run
+    instead of recalculating the strategy from each rolling start date.
+    Use calculate_rolling_cagr_for_strategy() for correct calculations.
     
     Args:
         data: DataFrame with 'date', 'total_value', 'initial_value', 'start_date' columns
@@ -722,18 +871,59 @@ if DEBUG_MODE:
     st.warning("⚠️ DEBUG MODE ON - Showing only Debug Table (scroll to bottom)")
     st.stop()  # Stop here and skip all other sections
 else:
-    # Calculate rolling CAGR (pass crypto_data/fund_data for price information)
-    rolling_cagr_4y_s1 = calculate_rolling_cagr(strategy_1, years=4, crypto_data=crypto_data)
-    rolling_cagr_4y_s2 = calculate_rolling_cagr(strategy_2, years=4, crypto_data=crypto_data)
-    rolling_cagr_4y_s3 = calculate_rolling_cagr(strategy_3, years=4, fund_data=fund_data)
+    # Calculate rolling CAGR (using corrected function that recalculates strategy from each rolling start date)
+    # Uses caching to avoid recalculation when parameters haven't changed
+    start_date_str = start_date.strftime('%Y-%m-%d')  # Convert to string for cache key
+    end_date_str = end_date.strftime('%Y-%m-%d')  # Convert to string for cache key
+    
+    with st.spinner("Calculating rolling CAGR (this may take a moment on first load)..."):
+        rolling_cagr_4y_s1 = calculate_rolling_cagr_for_strategy(
+            crypto_data, fund_data, strategy_type=1, years=4,
+            initial_amount=initial_amount, loan_pct=loan_pct, interest_rate=interest_rate,
+            start_date_str=start_date_str, end_date_str=end_date_str,
+            crypto_code=crypto_asset, fund_code=fund_asset)
+        rolling_cagr_4y_s2 = calculate_rolling_cagr_for_strategy(
+            crypto_data, fund_data, strategy_type=2, years=4,
+            initial_amount=initial_amount, loan_pct=loan_pct, interest_rate=interest_rate,
+            start_date_str=start_date_str, end_date_str=end_date_str,
+            crypto_code=crypto_asset, fund_code=fund_asset)
+        rolling_cagr_4y_s3 = calculate_rolling_cagr_for_strategy(
+            crypto_data, fund_data, strategy_type=3, years=4,
+            initial_amount=initial_amount, loan_pct=loan_pct, interest_rate=interest_rate,
+            start_date_str=start_date_str, end_date_str=end_date_str,
+            crypto_code=crypto_asset, fund_code=fund_asset)
 
-    rolling_cagr_2y_s1 = calculate_rolling_cagr(strategy_1, years=2, crypto_data=crypto_data)
-    rolling_cagr_2y_s2 = calculate_rolling_cagr(strategy_2, years=2, crypto_data=crypto_data)
-    rolling_cagr_2y_s3 = calculate_rolling_cagr(strategy_3, years=2, fund_data=fund_data)
+        rolling_cagr_2y_s1 = calculate_rolling_cagr_for_strategy(
+            crypto_data, fund_data, strategy_type=1, years=2,
+            initial_amount=initial_amount, loan_pct=loan_pct, interest_rate=interest_rate,
+            start_date_str=start_date_str, end_date_str=end_date_str,
+            crypto_code=crypto_asset, fund_code=fund_asset)
+        rolling_cagr_2y_s2 = calculate_rolling_cagr_for_strategy(
+            crypto_data, fund_data, strategy_type=2, years=2,
+            initial_amount=initial_amount, loan_pct=loan_pct, interest_rate=interest_rate,
+            start_date_str=start_date_str, end_date_str=end_date_str,
+            crypto_code=crypto_asset, fund_code=fund_asset)
+        rolling_cagr_2y_s3 = calculate_rolling_cagr_for_strategy(
+            crypto_data, fund_data, strategy_type=3, years=2,
+            initial_amount=initial_amount, loan_pct=loan_pct, interest_rate=interest_rate,
+            start_date_str=start_date_str, end_date_str=end_date_str,
+            crypto_code=crypto_asset, fund_code=fund_asset)
 
-    rolling_cagr_1y_s1 = calculate_rolling_cagr(strategy_1, years=1, crypto_data=crypto_data)
-    rolling_cagr_1y_s2 = calculate_rolling_cagr(strategy_2, years=1, crypto_data=crypto_data)
-    rolling_cagr_1y_s3 = calculate_rolling_cagr(strategy_3, years=1, fund_data=fund_data)
+        rolling_cagr_1y_s1 = calculate_rolling_cagr_for_strategy(
+            crypto_data, fund_data, strategy_type=1, years=1,
+            initial_amount=initial_amount, loan_pct=loan_pct, interest_rate=interest_rate,
+            start_date_str=start_date_str, end_date_str=end_date_str,
+            crypto_code=crypto_asset, fund_code=fund_asset)
+        rolling_cagr_1y_s2 = calculate_rolling_cagr_for_strategy(
+            crypto_data, fund_data, strategy_type=2, years=1,
+            initial_amount=initial_amount, loan_pct=loan_pct, interest_rate=interest_rate,
+            start_date_str=start_date_str, end_date_str=end_date_str,
+            crypto_code=crypto_asset, fund_code=fund_asset)
+        rolling_cagr_1y_s3 = calculate_rolling_cagr_for_strategy(
+            crypto_data, fund_data, strategy_type=3, years=1,
+            initial_amount=initial_amount, loan_pct=loan_pct, interest_rate=interest_rate,
+            start_date_str=start_date_str, end_date_str=end_date_str,
+            crypto_code=crypto_asset, fund_code=fund_asset)
 
 # Skip charts section if in DEBUG_MODE
 if not DEBUG_MODE:
@@ -1107,17 +1297,17 @@ fig_1y.update_layout(
 st.plotly_chart(fig_1y, use_container_width=True)
 
 # Summary metrics (removed as per user request)
-# st.subheader("📊 Performance Summary")
+st.subheader("📊 Performance Summary")
 
 # Heatmap section (Performance Summary removed as per user request)
 st.markdown("---")
 st.subheader("🔥 CAGR Heatmap: Different Start Dates")
 st.markdown("*See how CAGR varies based on when you started the investment*")
-
+# 
 # Generate start dates (monthly intervals) - use selected start_date and end_date
 heatmap_start = start_date  # Use selected start_date instead of min_date
 heatmap_end_for_starts = end_date - timedelta(days=365)  # At least 1 year of data before end_date
-
+# 
 if heatmap_start < heatmap_end_for_starts:
     # Generate monthly start dates
     start_dates = pd.date_range(start=heatmap_start, end=heatmap_end_for_starts, freq='MS').tolist()
@@ -1250,18 +1440,18 @@ if heatmap_start < heatmap_end_for_starts:
         st.info("Not enough data to generate heatmap.")
 else:
     st.info("Not enough historical data to generate heatmap. Need at least 1 year of data.")
-
-
+# 
+# 
 # Yearly Drawdown Analysis
 st.markdown("---")
 st.subheader("📉 Yearly Maximum Drawdown Analysis")
 st.markdown("Maximum drawdown shows the largest peak-to-trough decline within each year. Lower (less negative) is better.")
-
+# 
 # Calculate yearly drawdowns for all strategies
 drawdown_s1 = calculate_yearly_drawdown(strategy_1)
 drawdown_s2 = calculate_yearly_drawdown(strategy_2)
 drawdown_s3 = calculate_yearly_drawdown(strategy_3)
-
+# 
 if not drawdown_s1.empty and not drawdown_s2.empty and not drawdown_s3.empty:
     # Merge all drawdowns
     drawdown_s1['strategy'] = 'Crypto-Backed VN Fund'
@@ -1363,9 +1553,9 @@ if not drawdown_s1.empty and not drawdown_s2.empty and not drawdown_s3.empty:
     )
 else:
     st.info("Not enough data to calculate yearly drawdowns.")
-
-
-
+# 
+# 
+# 
 # ========== MONTHLY PORTFOLIO DEBUG TABLE (Final Section) ==========
 st.markdown("---")
 st.subheader("🔍 Monthly Portfolio Debug Table")
@@ -1453,7 +1643,7 @@ if not first_btc_data_main.empty:
             'S1: Fund Value': f"$0",
             'S1: Debt': f"$0",
             'S1: Valuation': f"${initial_amount:,.0f}",
-            'S1: CAGR': "0.0%",
+            'S1: Monthly Return %': "0.00%",
             'S2: BTC Holdings': "0.0000",
             'S2: Avg BTC Price': "$0",
             'S2: Crypto Value': f"$0",
@@ -1461,9 +1651,9 @@ if not first_btc_data_main.empty:
             'S2: Cash': f"${initial_amount:,.0f}",
             'S2: Debt': f"$0",
             'S2: Valuation': f"${initial_amount:,.0f}",
-            'S2: CAGR': "0.0%",
+            'S2: Monthly Return %': "0.00%",
             'S3: Valuation': f"${initial_amount:,.0f}",
-            'S3: CAGR': "0.0%",
+            'S3: Monthly Return %': "0.00%",
             '_is_initial': True
         }
         debug_data_main.append(initial_row_main)
@@ -1533,16 +1723,22 @@ if not first_btc_data_main.empty:
                 s3_fund_value = 0
                 s3_valuation = 0
             
-            # Calculate CAGR
-            years_for_cagr = (actual_month_end - actual_first_date_main).days / 365.25
-            if years_for_cagr > 0:
-                s1_cagr = (((s1_valuation / initial_amount) ** (1 / years_for_cagr)) - 1) * 100
-                s2_cagr = (((s2_valuation / initial_amount) ** (1 / years_for_cagr)) - 1) * 100
-                s3_cagr = (((s3_valuation / initial_amount) ** (1 / years_for_cagr)) - 1) * 100
+            # Calculate Monthly Return % (compared to previous month)
+            if month_idx > 0 and len(debug_data_main) > 1:  # Changed from > 0 to > 1 to account for initial row
+                prev_row = debug_data_main[-1]
+                # Extract numeric values from formatted strings
+                prev_s1_val = float(prev_row['S1: Valuation'].replace('$', '').replace(',', ''))
+                prev_s2_val = float(prev_row['S2: Valuation'].replace('$', '').replace(',', ''))
+                prev_s3_val = float(prev_row['S3: Valuation'].replace('$', '').replace(',', ''))
+                
+                s1_monthly_return = ((s1_valuation - prev_s1_val) / prev_s1_val * 100) if prev_s1_val > 0 else 0
+                s2_monthly_return = ((s2_valuation - prev_s2_val) / prev_s2_val * 100) if prev_s2_val > 0 else 0
+                s3_monthly_return = ((s3_valuation - prev_s3_val) / prev_s3_val * 100) if prev_s3_val > 0 else 0
             else:
-                s1_cagr = 0
-                s2_cagr = 0
-                s3_cagr = 0
+                # First month - compare with initial amount
+                s1_monthly_return = ((s1_valuation - initial_amount) / initial_amount * 100) if initial_amount > 0 else 0
+                s2_monthly_return = ((s2_valuation - initial_amount) / initial_amount * 100) if initial_amount > 0 else 0
+                s3_monthly_return = ((s3_valuation - initial_amount) / initial_amount * 100) if initial_amount > 0 else 0
             
             debug_row_main = {
                 'Date': actual_month_end.strftime('%Y-%m'),
@@ -1554,7 +1750,7 @@ if not first_btc_data_main.empty:
                 'S1: Fund Value': f"${s1_fund_value:,.0f}",
                 'S1: Debt': f"${s1_debt:,.0f}",
                 'S1: Valuation': f"${s1_valuation:,.0f}",
-                'S1: CAGR': f"{s1_cagr:.1f}%",
+                'S1: Monthly Return %': f"{s1_monthly_return:+.2f}%",
                 'S2: BTC Holdings': f"{s2_btc_holdings:.4f}",
                 'S2: Avg BTC Price': f"${s2_avg_btc_price:,.0f}",
                 'S2: Crypto Value': f"${s2_crypto_value:,.0f}",
@@ -1562,9 +1758,9 @@ if not first_btc_data_main.empty:
                 'S2: Cash': f"${s2_cash:,.0f}",
                 'S2: Debt': f"${s2_debt:,.0f}",
                 'S2: Valuation': f"${s2_valuation:,.0f}",
-                'S2: CAGR': f"{s2_cagr:.1f}%",
+                'S2: Monthly Return %': f"{s2_monthly_return:+.2f}%",
                 'S3: Valuation': f"${s3_valuation:,.0f}",
-                'S3: CAGR': f"{s3_cagr:.1f}%",
+                'S3: Monthly Return %': f"{s3_monthly_return:+.2f}%",
                 '_is_initial': False
             }
             debug_data_main.append(debug_row_main)
@@ -1594,7 +1790,7 @@ if not first_btc_data_main.empty:
                         styles.append('background-color: rgba(255, 255, 0, 0.2)')
                     elif 'Valuation' in s.name:
                         styles.append('background-color: rgba(61, 157, 243, 0.2)')
-                    elif 'CAGR' in s.name:
+                    elif 'Monthly Return %' in s.name:
                         styles.append('background-color: rgba(34, 139, 34, 0.3)')
                     else:
                         styles.append('')
