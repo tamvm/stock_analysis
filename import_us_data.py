@@ -212,6 +212,158 @@ def import_stock_data(file_path, db_path="db/investment_data.db", asset_name=Non
     finally:
         conn.close()
 
+def download_and_import_us_funds(db_path="db/investment_data.db"):
+    """
+    Download historical data for US funds (FCNTX, FMAGX, BRK.B) from Yahoo Finance
+    and import directly into the database.
+    
+    Args:
+        db_path: Path to the SQLite database (default: "db/investment_data.db")
+    
+    Returns:
+        True if all downloads and imports successful, False otherwise
+    """
+    import yfinance as yf
+    
+    # Define the funds to download
+    funds = [
+        {'ticker': 'FCNTX', 'name': 'Fidelity Contrafund', 'type': 'us_fund'},
+        {'ticker': 'FMAGX', 'name': 'Fidelity Magellan', 'type': 'us_fund'},
+        {'ticker': 'BRK-B', 'name': 'Berkshire Hathaway Class B', 'type': 'us_stock', 'code': 'BRK.B'}
+    ]
+    
+    print("=" * 60)
+    print("US Funds Download and Import")
+    print("=" * 60)
+    
+    success_count = 0
+    fail_count = 0
+    
+    for fund in funds:
+        ticker = fund['ticker']
+        asset_code = fund.get('code', ticker)  # Use 'code' if specified, otherwise use ticker
+        asset_name = fund['name']
+        asset_type = fund['type']
+        
+        print(f"\n{'=' * 60}")
+        print(f"Processing: {asset_name} ({asset_code})")
+        print(f"{'=' * 60}")
+        
+        try:
+            # Download data from Yahoo Finance
+            print(f"Downloading data from Yahoo Finance...")
+            df = yf.download(ticker, period="max", progress=False)
+            
+            if df.empty:
+                print(f"❌ No data returned for {ticker}")
+                fail_count += 1
+                continue
+            
+            print(f"Downloaded {len(df)} records")
+            
+            # Prepare data for database
+            df_records = []
+            for date, row in df.iterrows():
+                # Normalize date to timezone-naive
+                if hasattr(date, 'tz') and date.tz is not None:
+                    date = date.tz_localize(None)
+                
+                df_records.append({
+                    'date': date,
+                    'price': float(row['Close'].iloc[0]) if hasattr(row['Close'], 'iloc') else float(row['Close']),
+                    'asset_code': asset_code,
+                    'asset_type': asset_type
+                })
+            
+            # Create DataFrame
+            df_db = pd.DataFrame(df_records)
+            df_db = df_db.sort_values('date').reset_index(drop=True)
+            
+            print(f"Processed {len(df_db)} unique price records")
+            print(f"Date range: {df_db['date'].min().date()} to {df_db['date'].max().date()}")
+            
+            # Connect to database and import
+            conn = sqlite3.connect(db_path)
+            
+            try:
+                # OVERRIDE: Clear existing data for this asset
+                print(f"Overriding existing {asset_code} data...")
+                conn.execute('DELETE FROM price_data WHERE asset_code = ?', (asset_code,))
+                
+                # Insert price data
+                print("Inserting price data...")
+                df_db.to_sql('price_data', conn, if_exists='append', index=False)
+                
+                # Insert or update asset metadata
+                inception_date = df_db['date'].min()
+                last_date = df_db['date'].max()
+                
+                print("Updating asset metadata...")
+                conn.execute('''
+                    INSERT OR REPLACE INTO assets
+                    (asset_code, asset_name, asset_type, inception_date, last_update)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (asset_code, asset_name, asset_type, str(inception_date.date()), str(last_date.date())))
+                
+                conn.commit()
+                
+                print(f"✅ Successfully imported {asset_code}:")
+                print(f"   - Asset Type: {asset_type}")
+                print(f"   - Records: {len(df_db)}")
+                print(f"   - Date Range: {inception_date.date()} to {last_date.date()}")
+                
+                # Verify import
+                result = conn.execute('SELECT COUNT(*) FROM price_data WHERE asset_code = ?', (asset_code,)).fetchone()
+                print(f"   - Verified: {result[0]} records in database")
+                
+                success_count += 1
+                
+            except Exception as e:
+                print(f"❌ Error importing data: {e}")
+                conn.rollback()
+                fail_count += 1
+            finally:
+                conn.close()
+                
+        except Exception as e:
+            print(f"❌ Error downloading data: {e}")
+            fail_count += 1
+    
+    print("\n" + "=" * 60)
+    print("Download and Import Summary")
+    print("=" * 60)
+    print(f"Total funds: {len(funds)}")
+    print(f"Successful: {success_count}")
+    print(f"Failed: {fail_count}")
+    
+    # Show database status if any succeeded
+    if success_count > 0:
+        conn = sqlite3.connect(db_path)
+        
+        # Show imported assets
+        assets_df = pd.read_sql_query(
+            "SELECT asset_code, asset_name, asset_type, inception_date, last_update FROM assets WHERE asset_code IN ('FCNTX', 'FMAGX', 'BRK.B') ORDER BY asset_type, asset_code", 
+            conn
+        )
+        print("\nImported assets:")
+        print(assets_df.to_string(index=False))
+        
+        # Show latest prices
+        latest_prices = pd.read_sql_query('''
+            SELECT asset_type, asset_code, MAX(date) as latest_date,
+                   price as latest_price
+            FROM price_data
+            WHERE asset_code IN ('FCNTX', 'FMAGX', 'BRK.B')
+            GROUP BY asset_code
+            ORDER BY asset_type, asset_code
+        ''', conn)
+        print(f"\nLatest prices:")
+        print(latest_prices.to_string(index=False))
+        
+        conn.close()
+    
+    return fail_count == 0
+
 def batch_import_data(data_dirs=None, db_path="db/investment_data.db"):
     """
     Batch import all data files from specified directories
