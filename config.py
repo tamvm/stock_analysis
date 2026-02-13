@@ -50,6 +50,7 @@ ROLLING_WINDOWS = [1, 3, 4, 5]
 #
 # Available asset types:
 #   - vn_fund: Vietnamese mutual funds
+#   - us_fund: US mutual funds
 #   - us_etf: US ETFs
 #   - us_stock: US stocks
 #   - crypto: Cryptocurrencies

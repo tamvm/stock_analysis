@@ -214,7 +214,7 @@ def import_stock_data(file_path, db_path="db/investment_data.db", asset_name=Non
 
 def download_and_import_us_funds(db_path="db/investment_data.db"):
     """
-    Download historical data for US funds (FCNTX, FMAGX, BRK.B) from Yahoo Finance
+    Download historical data for US funds and ETFs from Yahoo Finance
     and import directly into the database.
     
     Args:
@@ -229,7 +229,9 @@ def download_and_import_us_funds(db_path="db/investment_data.db"):
     funds = [
         {'ticker': 'FCNTX', 'name': 'Fidelity Contrafund', 'type': 'us_fund'},
         {'ticker': 'FMAGX', 'name': 'Fidelity Magellan', 'type': 'us_fund'},
-        {'ticker': 'BRK-B', 'name': 'Berkshire Hathaway Class B', 'type': 'us_stock', 'code': 'BRK.B'}
+        {'ticker': 'BRK-B', 'name': 'Berkshire Hathaway Class B', 'type': 'us_stock', 'code': 'BRK.B'},
+        {'ticker': 'IVV', 'name': 'iShares Core S&P 500 ETF', 'type': 'us_etf'},
+        {'ticker': 'VUG', 'name': 'Vanguard Growth ETF', 'type': 'us_etf'}
     ]
     
     print("=" * 60)

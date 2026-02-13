@@ -156,6 +156,8 @@ try:
     assets_df = processor.get_asset_list()
     # VN funds
     fund_assets = assets_df[assets_df['asset_type'] == 'vn_fund']['asset_code'].tolist()
+    # US funds
+    us_fund_assets = assets_df[assets_df['asset_type'] == 'us_fund']['asset_code'].tolist()
     # US ETFs
     etf_assets = assets_df[assets_df['asset_type'] == 'us_etf']['asset_code'].tolist()
     # Benchmarks include: benchmark type, vn_index type
@@ -165,7 +167,7 @@ try:
     crypto_assets = assets_df[assets_df['asset_type'] == 'crypto']['asset_code'].tolist()
     commodity_assets = assets_df[assets_df['asset_type'] == 'commodity']['asset_code'].tolist()
     
-    all_assets = fund_assets + etf_assets + benchmark_assets + stock_assets + crypto_assets + commodity_assets
+    all_assets = fund_assets + us_fund_assets + etf_assets + benchmark_assets + stock_assets + crypto_assets + commodity_assets
 except:
     st.error("Database not found. Please run data_processor.py first to load data.")
     st.stop()
@@ -230,6 +232,7 @@ st.sidebar.markdown("*Click to quickly select asset groups*")
 # Create asset type mapping for resolving @type: specifications
 asset_type_map = {
     'vn_fund': fund_assets,
+    'us_fund': us_fund_assets,
     'us_etf': etf_assets,
     'us_stock': stock_assets,
     'crypto': crypto_assets,
