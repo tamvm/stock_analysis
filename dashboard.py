@@ -38,7 +38,7 @@ CHART_COLORS = [
 
 # Initialize processors
 # Version tag: increment this to force cache refresh when calculation logic changes
-METRICS_VERSION = "v3.0_independent_asset_processing"
+METRICS_VERSION = "v3.1_annual_metrics_table"
 
 @st.cache_resource
 def init_processors(_version=METRICS_VERSION):
@@ -292,8 +292,8 @@ for row in range(rows):
                     use_container_width=True,
                     disabled=len(valid_preset_assets) == 0
                 ):
-                    # Directly update the multiselect widget's session state value
-                    st.session_state.selected_assets_multiselect = valid_preset_assets
+                    # Set a trigger to update the preset selection
+                    st.session_state.preset_selected_assets = valid_preset_assets
                     # Also update our tracking of saved assets
                     st.session_state.saved_selected_assets = valid_preset_assets
                     # Update URL query parameters
@@ -303,12 +303,8 @@ for row in range(rows):
                     st.rerun()
 
 # Determine the default value for multiselect
-# Priority: 1) Existing widget value (if already set), 2) URL parameters, 3) Preset selection, 4) Saved assets, 5) VN Top Funds preset
-# Only set default if the widget hasn't been initialized yet
-if 'selected_assets_multiselect' in st.session_state and st.session_state.selected_assets_multiselect is not None:
-    # Widget already has a value, use it (this prevents reset on rerun)
-    default_assets = st.session_state.selected_assets_multiselect
-elif url_selected_assets:
+# Priority: 1) URL parameters, 2) Preset selection, 3) Saved assets, 4) VN Top Funds preset
+if url_selected_assets:
     # Use assets from URL parameters
     default_assets = url_selected_assets
 elif st.session_state.preset_selected_assets is not None:
@@ -1015,6 +1011,328 @@ try:
         
 except Exception as e:
     st.error(f"Error calculating CAGR table: {e}")
+    import traceback
+    st.error(traceback.format_exc())
+
+# Annual Metrics by Year Section
+st.subheader("📊 Annual Metrics by Year")
+
+try:
+    # Calculate annual metrics table with extended history (up to 20 years)
+    # Pass start_date=None to get full history, ignoring the global dashboard filter
+    annual_metrics_df = calc.calculate_annual_metrics_table(
+        selected_assets, 
+        start_date=None, 
+        end_date=end_date
+    )
+    
+    if not annual_metrics_df.empty:
+        # Sort by year descending and keep max 20 years
+        annual_metrics_df = annual_metrics_df.sort_index(ascending=False).head(20)
+        
+        # Display summary information
+        st.markdown(f"**Years Analyzed:** {len(annual_metrics_df)} (showing up to 20 years)")
+        
+        # Check if IVV is available for benchmark comparison
+        if 'IVV_Return' in annual_metrics_df.columns:
+            st.info("📊 **IVV Benchmark Comparison Active**: Green = Beats IVV, Red = Underperforms IVV")
+        else:
+            st.info("💡 **Tip**: Add IVV to your selection to enable benchmark comparison")
+        
+        # Helper function to create transposed table (Assets x Years) with IVV benchmark comparison
+        def create_metric_table(metric_suffix, metric_name, format_func, color_func, higher_is_better=True):
+            """Create a styled table for a specific metric with Assets as rows and Years as columns"""
+            years = annual_metrics_df.index.tolist()
+            
+            # Check if IVV is in the data for benchmark comparison
+            ivv_col_name = f'IVV_{metric_suffix}'
+            has_ivv_benchmark = ivv_col_name in annual_metrics_df.columns
+            
+            # Create data structure: Row = Asset, Columns = Years
+            data = []
+            for asset in selected_assets:
+                row = {'Asset': asset}
+                for year in years:
+                    col_name = f'{asset}_{metric_suffix}'
+                    # Check if column exists (asset might not have data for all years)
+                    if col_name in annual_metrics_df.columns:
+                        val = annual_metrics_df.loc[year, col_name]
+                        row[year] = val
+                    else:
+                        row[year] = np.nan
+                data.append(row)
+            
+            df = pd.DataFrame(data)
+            
+            # Format values
+            formatted_df = df.copy()
+            for col in years:
+                formatted_df[col] = formatted_df[col].apply(format_func)
+            
+            # Apply styling
+            # Style Asset column
+            def style_asset(val):
+                return 'font-weight: bold; text-align: left; background-color: #f8f9fa; padding: 8px;'
+            
+            styled = formatted_df.style.map(style_asset, subset=['Asset'])
+            
+            # Style Year columns with IVV benchmark comparison
+            def style_cell_with_benchmark(val, year, asset):
+                if pd.isna(val) or val == '':
+                    return 'background-color: #f8f9fa; text-align: center; padding: 8px;'
+                
+                # If IVV benchmark is available and this is not IVV itself, compare
+                if has_ivv_benchmark and asset != 'IVV':
+                    try:
+                        # Get the raw numeric value for this asset
+                        asset_col = f'{asset}_{metric_suffix}'
+                        if asset_col in annual_metrics_df.columns:
+                            asset_val = annual_metrics_df.loc[year, asset_col]
+                            ivv_val = annual_metrics_df.loc[year, ivv_col_name]
+                            
+                            if pd.notna(asset_val) and pd.notna(ivv_val):
+                                # Compare: green if beats IVV, red if underperforms
+                                if higher_is_better:
+                                    beats_ivv = asset_val > ivv_val
+                                else:
+                                    beats_ivv = asset_val < ivv_val
+                                
+                                if beats_ivv:
+                                    return 'background-color: #d4edda; color: #155724; text-align: center; padding: 8px;'  # Green
+                                else:
+                                    return 'background-color: #f8d7da; color: #721c24; text-align: center; padding: 8px;'  # Red
+                    except:
+                        pass
+                
+                # Default color coding (for IVV itself or when no benchmark)
+                return color_func(val) + ' text-align: center; padding: 8px;'
+
+            for year in years:
+                for asset in selected_assets:
+                    try:
+                        styled = styled.map(
+                            lambda val, y=year, a=asset: style_cell_with_benchmark(val, y, a),
+                            subset=pd.IndexSlice[df[df['Asset'] == asset].index, year]
+                        )
+                    except:
+                        # Fallback to simple styling if indexing fails
+                        styled = styled.map(
+                            lambda val: color_func(val) + ' text-align: center; padding: 8px;' if pd.notna(val) and val != '' else 'background-color: #f8f9fa; text-align: center; padding: 8px;',
+                            subset=[year]
+                        )
+            
+            return styled
+        
+        # 1. Annual Returns Table
+        st.markdown("### 📈 Annual Returns by Year")
+        st.markdown("*Higher is better. Shows the total return for each calendar year.*")
+        
+        def format_return(x):
+            return f"{x:+.1f}%" if pd.notna(x) else ''
+        
+        def color_return(val):
+            try:
+                # Remove % and + signs, convert to float
+                numeric_val = float(val.replace('%', '').replace('+', ''))
+                if numeric_val > 30:
+                    return 'background-color: #d4edda; color: #155724;'  # Excellent
+                elif numeric_val > 15:
+                    return 'background-color: #d1ecf1; color: #0c5460;'  # Very good
+                elif numeric_val > 5:
+                    return 'background-color: #cfe2ff; color: #084298;'  # Good
+                elif numeric_val > 0:
+                    return 'background-color: #fff3cd; color: #856404;'  # Positive
+                elif numeric_val > -10:
+                    return 'background-color: #f8d7da; color: #721c24;'  # Negative
+                else:
+                    return 'background-color: #f5c6cb; color: #721c24;'  # Very negative
+            except:
+                return 'background-color: #f8f9fa;'
+        
+        returns_table = create_metric_table('Return', 'Annual Returns', format_return, color_return, higher_is_better=True)
+        st.dataframe(returns_table, use_container_width=True, height=min(500, (len(selected_assets) + 1) * 35 + 50))
+        
+        st.markdown("---")
+        
+        # 2. Maximum Drawdown Table
+        st.markdown("### 📉 Maximum Drawdown by Year")
+        st.markdown("*Lower is better. Shows the maximum decline from peak within each year.*")
+        
+        def format_drawdown(x):
+            return f"{x:.1f}%" if pd.notna(x) else ''
+        
+        def color_drawdown(val):
+            try:
+                # Remove % and convert to float
+                numeric_val = float(val.replace('%', ''))
+                if numeric_val > -5:
+                    return 'background-color: #d4edda; color: #155724;'  # Excellent
+                elif numeric_val > -10:
+                    return 'background-color: #d1ecf1; color: #0c5460;'  # Good
+                elif numeric_val > -15:
+                    return 'background-color: #fff3cd; color: #856404;'  # Moderate
+                elif numeric_val > -25:
+                    return 'background-color: #f8d7da; color: #721c24;'  # Poor
+                else:
+                    return 'background-color: #f5c6cb; color: #721c24;'  # Very poor
+            except:
+                return 'background-color: #f8f9fa;'
+        
+        drawdown_table = create_metric_table('Drawdown', 'Maximum Drawdown', format_drawdown, color_drawdown, higher_is_better=True)
+        st.dataframe(drawdown_table, use_container_width=True, height=min(500, (len(selected_assets) + 1) * 35 + 50))
+        
+        st.markdown("---")
+        
+        # 3. Volatility (Standard Deviation) Table
+        st.markdown("### 📊 Volatility (Standard Deviation) by Year")
+        st.markdown("*Lower is better. Shows annualized volatility of returns.*")
+        
+        def format_volatility(x):
+            return f"{x:.1f}%" if pd.notna(x) else ''
+        
+        def color_volatility(val):
+            try:
+                numeric_val = float(val.replace('%', ''))
+                if numeric_val < 10:
+                    return 'background-color: #d4edda; color: #155724;'  # Very low
+                elif numeric_val < 15:
+                    return 'background-color: #d1ecf1; color: #0c5460;'  # Low
+                elif numeric_val < 20:
+                    return 'background-color: #fff3cd; color: #856404;'  # Moderate
+                elif numeric_val < 30:
+                    return 'background-color: #f8d7da; color: #721c24;'  # High
+                else:
+                    return 'background-color: #f5c6cb; color: #721c24;'  # Very high
+            except:
+                return 'background-color: #f8f9fa;'
+        
+        volatility_table = create_metric_table('StdDev', 'Volatility', format_volatility, color_volatility, higher_is_better=False)
+        st.dataframe(volatility_table, use_container_width=True, height=min(500, (len(selected_assets) + 1) * 35 + 50))
+        
+        st.markdown("---")
+        
+        # 4. Sharpe Ratio Table
+        st.markdown("### ⚡ Sharpe Ratio by Year")
+        st.markdown("*Higher is better. Shows risk-adjusted returns (>1 is good, >2 is excellent).*")
+        
+        def format_sharpe(x):
+            return f"{x:.2f}" if pd.notna(x) else ''
+        
+        def color_sharpe(val):
+            try:
+                numeric_val = float(val)
+                if numeric_val > 2.0:
+                    return 'background-color: #d4edda; color: #155724;'  # Excellent
+                elif numeric_val > 1.5:
+                    return 'background-color: #d1ecf1; color: #0c5460;'  # Very good
+                elif numeric_val > 1.0:
+                    return 'background-color: #cfe2ff; color: #084298;'  # Good
+                elif numeric_val > 0.5:
+                    return 'background-color: #fff3cd; color: #856404;'  # Acceptable
+                elif numeric_val > 0:
+                    return 'background-color: #f8d7da; color: #721c24;'  # Poor
+                else:
+                    return 'background-color: #f5c6cb; color: #721c24;'  # Negative
+            except:
+                return 'background-color: #f8f9fa;'
+        
+        sharpe_table = create_metric_table('Sharpe', 'Sharpe Ratio', format_sharpe, color_sharpe, higher_is_better=True)
+        st.dataframe(sharpe_table, use_container_width=True, height=min(500, (len(selected_assets) + 1) * 35 + 50))
+        
+        st.markdown("---")
+        
+        # Performance Rankings Section
+        st.markdown("### 🏆 Performance Rankings")
+        st.markdown("*Top 2 performers for each metric across all years*")
+        
+        # Calculate rankings for each metric
+        years = annual_metrics_df.index.tolist()
+        
+        # Helper function to get top 2 for a specific year and metric
+        def get_top_performers(year, metric_suffix, higher_is_better=True):
+            """Get top 2 performers for a specific year and metric"""
+            values = {}
+            for asset in selected_assets:
+                col_name = f'{asset}_{metric_suffix}'
+                if col_name in annual_metrics_df.columns:
+                    val = annual_metrics_df.loc[year, col_name]
+                    if pd.notna(val):
+                        values[asset] = val
+            
+            if not values:
+                return []
+            
+            # Sort by value
+            sorted_assets = sorted(values.items(), key=lambda x: x[1], reverse=higher_is_better)
+            return sorted_assets[:2]  # Top 2
+        
+        # Count wins for each metric
+        metrics_config = [
+            ('Return', 'Annual Returns', True, '%'),
+            ('Drawdown', 'Max Drawdown', True, '%'),  # Higher (less negative) is better
+            ('StdDev', 'Volatility', False, '%'),
+            ('Sharpe', 'Sharpe Ratio', True, '')
+        ]
+        
+        # Create columns for each metric
+        cols = st.columns(4)
+        
+        for idx, (metric_suffix, metric_name, higher_is_better, unit) in enumerate(metrics_config):
+            with cols[idx]:
+                st.markdown(f"**{metric_name}**")
+                
+                # Count 1st and 2nd place finishes
+                first_place_count = {asset: 0 for asset in selected_assets}
+                second_place_count = {asset: 0 for asset in selected_assets}
+                
+                for year in years:
+                    top_performers = get_top_performers(year, metric_suffix, higher_is_better)
+                    if len(top_performers) >= 1:
+                        first_place_count[top_performers[0][0]] += 1
+                    if len(top_performers) >= 2:
+                        second_place_count[top_performers[1][0]] += 1
+                
+                # Display rankings
+                rankings = []
+                for asset in selected_assets:
+                    first = first_place_count[asset]
+                    second = second_place_count[asset]
+                    if first > 0 or second > 0:
+                        rankings.append((asset, first, second))
+                
+                # Sort by 1st place, then 2nd place
+                rankings.sort(key=lambda x: (x[1], x[2]), reverse=True)
+                
+                # Display top 3
+                for i, (asset, first, second) in enumerate(rankings[:3]):
+                    medal = "🥇" if i == 0 else "🥈" if i == 1 else "🥉"
+                    st.markdown(f"{medal} **{asset}**")
+                    st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;1st: {first}x, 2nd: {second}x")
+        
+        # Add color guide
+        st.markdown("---")
+        st.markdown("""
+        **📖 Color Guide:**
+        
+        **When IVV is selected (Benchmark Mode):**
+        - 🟢 **Green**: Asset beats IVV benchmark for that year
+        - 🔴 **Red**: Asset underperforms IVV benchmark for that year
+        - ⚪ **Gray**: Insufficient data or no data available for that year
+        - 🔵 **Blue** (IVV only): IVV's own performance (no comparison)
+        
+        **When IVV is not selected:**
+        - 🟢 **Green**: Excellent/Favorable values
+        - 🔵 **Blue**: Good values  
+        - 🟡 **Yellow**: Moderate/Acceptable values
+        - 🔴 **Red**: Poor/Unfavorable values
+        - ⚪ **Gray**: Insufficient data
+        """)
+        
+    else:
+        st.warning("No annual metrics data available for selected assets.")
+        
+except Exception as e:
+    st.error(f"Error calculating annual metrics table: {e}")
     import traceback
     st.error(traceback.format_exc())
 

@@ -403,7 +403,110 @@ class MetricsCalculator:
         
         return df
 
+    def calculate_annual_metrics_table(self, asset_codes, start_date=None, end_date=None):
+        """
+        Calculate annual metrics (returns, drawdown, standard deviation, Sharpe ratio) by calendar year.
+        
+        Args:
+            asset_codes: List of asset codes to analyze
+            start_date: Optional start date filter
+            end_date: Optional end date filter
+            
+        Returns:
+            DataFrame with multi-index columns (asset, metric) and years as rows
+        """
+        from config import RISK_FREE_RATE
+        
+        price_data, returns_data = self.get_returns_data(asset_codes)
+        
+        if price_data.empty or returns_data.empty:
+            return pd.DataFrame()
+        
+        # Apply date filters if provided
+        if start_date:
+            price_data = price_data[price_data.index >= pd.to_datetime(start_date)]
+            returns_data = returns_data[returns_data.index >= pd.to_datetime(start_date)]
+        if end_date:
+            price_data = price_data[price_data.index <= pd.to_datetime(end_date)]
+            returns_data = returns_data[returns_data.index <= pd.to_datetime(end_date)]
+        
+        # Get unique years from the data
+        years = sorted(price_data.index.year.unique(), reverse=True)
+        
+        # Initialize results dictionary
+        results = []
+        
+        for year in years:
+            year_data = {}
+            year_data['Year'] = year
+            
+            # Filter data for this year using direct index filtering to avoid dimension mismatch
+            # price_data and returns_data may have different lengths due to pct_change() dropping first row
+            year_prices = price_data[price_data.index.year == year]
+            year_returns = returns_data[returns_data.index.year == year]
+            
+            for asset in asset_codes:
+                # Calculate metrics for this asset in this year
+                asset_prices = year_prices[asset].dropna() if asset in year_prices.columns else pd.Series()
+                asset_returns = year_returns[asset].dropna() if asset in year_returns.columns else pd.Series()
+                
+                # Annual Return calculation (total return for the year)
+                if len(asset_prices) > 0:
+                    # Get first and last price of the year
+                    first_price = asset_prices.iloc[0]
+                    last_price = asset_prices.iloc[-1]
+                    if first_price > 0:
+                        annual_return = ((last_price - first_price) / first_price) * 100
+                        year_data[f'{asset}_Return'] = annual_return
+                    else:
+                        year_data[f'{asset}_Return'] = np.nan
+                else:
+                    year_data[f'{asset}_Return'] = np.nan
+                
+                # Drawdown calculation
+                if len(asset_prices) > 0:
+                    peak = asset_prices.expanding(min_periods=1).max()
+                    dd = (asset_prices - peak) / peak
+                    max_dd = dd.min() * 100  # Convert to percentage
+                    year_data[f'{asset}_Drawdown'] = max_dd
+                else:
+                    year_data[f'{asset}_Drawdown'] = np.nan
+                
+                # Standard deviation calculation (annualized)
+                if len(asset_returns) >= 5:  # Minimum 5 data points
+                    std_dev = asset_returns.std() * np.sqrt(252) * 100  # Annualized percentage
+                    year_data[f'{asset}_StdDev'] = std_dev
+                else:
+                    year_data[f'{asset}_StdDev'] = np.nan
+                
+                # Sharpe ratio calculation
+                if len(asset_returns) >= 5:  # Minimum 5 data points
+                    mean_return = asset_returns.mean() * 252  # Annualized
+                    volatility = asset_returns.std() * np.sqrt(252)
+                    
+                    if volatility > 0:
+                        sharpe = (mean_return - RISK_FREE_RATE) / volatility
+                        year_data[f'{asset}_Sharpe'] = sharpe
+                    else:
+                        year_data[f'{asset}_Sharpe'] = np.nan
+                else:
+                    year_data[f'{asset}_Sharpe'] = np.nan
+            
+            results.append(year_data)
+        
+        # Convert to DataFrame
+        df = pd.DataFrame(results)
+        
+        if df.empty:
+            return df
+        
+        # Set Year as index
+        df.set_index('Year', inplace=True)
+        
+        return df
+
     def get_performance_summary(self, asset_codes, periods=['3Y', '5Y', 'Inception']):
+
         """Get comprehensive performance summary"""
         price_data, returns_data = self.get_returns_data(asset_codes)
 

@@ -392,6 +392,21 @@ stock_analysis/
 - **Method**: Automated fetch using `import_crypto_data.py`
 - **Update**: Run script to fetch latest data from Yahoo Finance
 
+### Market PE Data (US)
+- **Source**: [SimplyWall.St US Market](https://simplywall.st/markets/us)
+- **Format**: JSON file with PE ratio timeseries data
+- **Location**: `data/us/simplywall_pe.json`
+- **Method**: Manual update via browser DevTools
+- **Update Process**:
+  1. Visit https://simplywall.st/markets/us
+  2. Open browser DevTools (F12) → Network tab
+  3. Filter by "graphql" requests
+  4. Look for response containing `IndustryTimeseries` data
+  5. Copy the JSON response
+  6. Save to `data/us/simplywall_pe.json`
+  7. Run `python import_market_pe.py us` to import
+- **Data Fields**: `absolutePE` (mapped to `pe_ratio`), `marketCap`, `earnings`, `revenue`
+
 ## Data Update Process
 
 ### Adding New Assets
