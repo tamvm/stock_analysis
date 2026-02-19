@@ -176,6 +176,90 @@ streamlit run dashboard.py
 ### 6. Open Browser
 Navigate to `http://localhost:8501`
 
+---
+
+## 🐳 Docker Deployment (Server)
+
+Use Docker Compose to run the app on a server. The SQLite database and data directory are mounted as volumes so they persist across container restarts.
+
+### Prerequisites
+- Docker & Docker Compose installed on the server
+- The `db/investment_data.db` file present in the project directory
+
+### 1. Clone the repo on the server
+```bash
+git clone <your-repo-url> stock_analysis
+cd stock_analysis
+```
+
+> **Note:** The `db/` directory with `investment_data.db` is **not** committed to git (it's in `.gitignore`). Copy it to the server manually:
+> ```bash
+> scp -r ./db user@your-server:/path/to/stock_analysis/
+> ```
+
+### 2. Build and start
+```bash
+docker compose up -d --build
+```
+
+The dashboard will be available at `http://localhost:8501`.
+
+### 3. View logs
+```bash
+docker compose logs -f
+```
+
+### 4. Stop
+```bash
+docker compose down
+```
+
+### 5. Run data import scripts inside the container
+Since imports are manual, exec into the running container:
+
+```bash
+# Update VN fund data
+docker compose exec stock_analysis python import_vn_funds.py
+
+# Update US data
+docker compose exec stock_analysis python import_us_data.py
+
+# Update crypto data
+docker compose exec stock_analysis python import_crypto_data.py
+
+# Recalculate metrics
+docker compose exec stock_analysis python metrics_job_manager.py
+```
+
+### 6. Cloudflare Tunnel (cloudflared)
+
+Add the following ingress rule to your existing `~/.cloudflared/config.yml` **before** the catch-all `http_status:404` line:
+
+```yaml
+tunnel: n8n
+credentials-file: /home/pi/.cloudflared/4c1c8e3f-0744-4053-b239-efcc17fe0444.json
+
+ingress:
+  - hostname: openclaw-x.kenchange.com
+    service: http://localhost:3000
+  - hostname: n8n.kenchange.com
+    service: http://localhost:5678
+  # --- Add this block ---
+  - hostname: fund_analysis.kenchange.com
+    service: http://localhost:8501
+  # ----------------------
+  - service: http_status:404
+```
+
+Then restart the tunnel:
+```bash
+sudo systemctl restart cloudflared
+```
+
+The dashboard will be accessible at `https://fund_analysis.kenchange.com`.
+
+---
+
 ## Dashboard Features
 
 ### 📊 Multi-Page Interface

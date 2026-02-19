@@ -1,0 +1,12 @@
+services:
+  stock_analysis:
+    build: .
+    container_name: stock_analysis
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    volumes:
+      # Persist the SQLite database across container restarts
+      - ./db:/app/db
+      # Persist the data directory (CSV imports etc.)
+      - ./data:/app/data
