@@ -51,102 +51,18 @@ def init_processors(_version=METRICS_VERSION):
 
 processor, calc = init_processors()
 
-# Initialize localStorage persistence functions
-def save_settings_to_localStorage():
-    """Save current settings to browser localStorage"""
-    settings = {
-        'selected_assets': st.session_state.get('selected_assets_ls', []),
-        'analysis_periods': st.session_state.get('analysis_periods_ls', ['1Y', '3Y', '5Y']),
-        'rolling_years': st.session_state.get('rolling_years_ls', 4),
-        'start_date': st.session_state.get('start_date_ls', ''),
-        'end_date': st.session_state.get('end_date_ls', '')
-    }
-
-    # Convert date objects to strings for JSON serialization
-    if isinstance(settings['start_date'], datetime):
-        settings['start_date'] = settings['start_date'].strftime('%d/%m/%Y')
-    if isinstance(settings['end_date'], datetime):
-        settings['end_date'] = settings['end_date'].strftime('%d/%m/%Y')
-
-    st.markdown(f"""
-    <script>
-    try {{
-        localStorage.setItem('investment_dashboard_settings', JSON.stringify({settings}));
-        console.log('Settings saved to localStorage:', {settings});
-    }} catch (e) {{
-        console.error('Error saving to localStorage:', e);
-    }}
-    </script>
-    """, unsafe_allow_html=True)
-
-def load_settings_from_localStorage():
-    """Load settings from browser localStorage"""
-    # Initialize with default values if localStorage is empty
-    default_settings = {
-        'selected_assets': [],
-        'analysis_periods': ['1Y', '3Y', '5Y'],
-        'rolling_years': 4,
-        'start_date': '',
-        'end_date': ''
-    }
-
-    # Try to get settings from localStorage via JavaScript and session state
-    if 'localStorage_loaded' not in st.session_state:
-        st.session_state.localStorage_loaded = False
-
-    return default_settings
-
-# Load settings on app start
-loaded_settings = load_settings_from_localStorage()
+# Default settings (used for all session defaults)
+loaded_settings = {
+    'selected_assets': [],
+    'analysis_periods': ['1Y', '3Y', '5Y'],
+    'rolling_years': 4,
+    'start_date': '',
+    'end_date': ''
+}
 
 # Title
 st.title("📈 Investment Analysis Portal")
 st.markdown("Professional investment analysis and comparison tool")
-
-# Add localStorage JavaScript handler
-st.markdown("""
-<script>
-// Load settings from localStorage on page load
-function loadSettingsFromLocalStorage() {
-    try {
-        const savedSettings = localStorage.getItem('investment_dashboard_settings');
-        if (savedSettings) {
-            const settings = JSON.parse(savedSettings);
-            console.log('Loaded settings from localStorage:', settings);
-
-            // Send settings to Streamlit via session state
-            window.parent.postMessage({
-                type: 'localStorage_settings',
-                data: settings
-            }, '*');
-
-            return settings;
-        }
-    } catch (e) {
-        console.error('Error loading from localStorage:', e);
-    }
-    return null;
-}
-
-// Save settings to localStorage
-function saveSettingsToLocalStorage(settings) {
-    try {
-        localStorage.setItem('investment_dashboard_settings', JSON.stringify(settings));
-        console.log('Settings saved to localStorage:', settings);
-    } catch (e) {
-        console.error('Error saving to localStorage:', e);
-    }
-}
-
-// Load settings when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    loadSettingsFromLocalStorage();
-});
-
-// Also try loading immediately
-loadSettingsFromLocalStorage();
-</script>
-""", unsafe_allow_html=True)
 
 # Sidebar for controls
 st.sidebar.header("Asset Selection & Settings")
